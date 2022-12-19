@@ -1,6 +1,7 @@
 mod general;
 mod computer;
 mod renderer;
+mod fluid;
 
 use winit::{
     event_loop::EventLoop,
