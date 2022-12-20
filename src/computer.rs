@@ -1,5 +1,7 @@
+use wgpu::BindGroupEntry;
+
 use crate::general::{State, PhysicalSize};
-use std::fs;
+use std::{fs, rc::Rc};
 
 
 pub fn compute_work_group_count(
@@ -57,7 +59,7 @@ pub struct ComputeUnit<'a> {
     dimensions: Dimensions,
 
     bind_group: wgpu::BindGroup,
-    entries: Vec<wgpu::BindGroupEntry<'a>>,
+    entries: Vec<Rc<wgpu::BindGroupEntry<'a>>>,
 }
 
 impl ComputeUnit <'_> {
@@ -92,6 +94,11 @@ impl ComputeUnit <'_> {
             entries: entries.as_slice(),
         });
 
+        let entries = entries
+            .iter()
+            .map(|resource| { Rc::new(resource.to_owned()) })
+            .collect::<Vec<_>>();
+
         ComputeUnit { pipeline, dimensions, bind_group, entries }
     }
 
@@ -117,7 +124,7 @@ impl ComputeUnit <'_> {
         //      then each call check if the target texture is equal to the last one
         //      if they are same use the last entries, it'll be way faster than cloning the 
         //      entries each step
-        let entries = self.entries.clone();
+        let entries = self.get_entries();
         entries.push(wgpu::BindGroupEntry {
             binding: entries.len() as u32,
             resource: wgpu::BindingResource::TextureView(
@@ -132,6 +139,15 @@ impl ComputeUnit <'_> {
         });
 
         self.execute(state, Some(bind_group), Some(dimensions));
+    }
+
+    fn get_entries(&self) -> Vec<BindGroupEntry> {
+        let entries = self.entries
+            .iter()
+            .map(|entry| { *entry.as_ref() })
+            .collect::<Vec<_>>();
+
+       entries 
     }
 }
 
