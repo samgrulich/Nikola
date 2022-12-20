@@ -9,21 +9,31 @@ struct Particle {
 @group(0) @binding(0) var<storage> particles: array<Particle>;
 @group(0) @binding(1) var<storage> time_step: f32;
 
+const H = 10f;
+
 @compute @workgroup_size(8, 8)
 fn main(
     @builtin(global_invocation_id) global_id: vec3<u32>
 ) {
     let local_particle = particles[global_id];
     let particles_len = arrayLength(particles); // supposed to be ptr
-    var distances = array<f32, particles_len>;
+    var distances = array<f32>;
+    var distances_len = 0u;
 
-    for particle in particles 
+    // compute distances
+    for (var i: i32 = 0; i < i32(particles_len); i++)
     {
+        let particle = particles[i];
+        let dist = distance(particle.position, local_particle.position);
 
+        if (dist <= H) {
+            distances[distance_len] = dist;
+            distance_len = distance_len + 1u;
+        }
     }
-    // compute distances fn: dinstance()
 
     // compute density
+    let density = 1;
 
     // compute forces
         // pressure

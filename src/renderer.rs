@@ -1,10 +1,5 @@
 use wgpu::util::DeviceExt;
-
-// ULMITMATE GOAL: render a texture onto screen
-//
-// suggested solution:
-//  add texture parameter to the fragment shader (mby vertex too, for the UV coordinations)
-//  aand load a picture into the texture
+use winit::dpi::PhysicalSize;
 
 use crate::general::State;
 
@@ -41,29 +36,66 @@ unsafe impl bytemuck::Zeroable for Vertex { }
 unsafe impl bytemuck::Pod for Vertex { }
 
 
+pub trait Renderable {
+    /// Render the inner contents of object, then return the Texture reference
+    /// ! you need to keep the texture alive
+    fn render(&self, dimensions: PhysicalSize<u32>) -> &wgpu::Texture;
+
+    /// Render contents of the object to the texture
+    fn plot(&self, out_texture: &wgpu::Texture);
+}
+
 pub struct Renderer{
     vertex_buffer: wgpu::Buffer,
-    render_pipeline: wgpu::RenderPipeline,
     num_vertices: u32,
+    
+    texture: wgpu::Texture,
+    dimensions: PhysicalSize<u32>,
+    render_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
 }
 
 impl Renderer {
-    pub async fn new(state: &State, mesh_slice: &[Vertex], texture: &wgpu::Texture) -> Self {
+    pub async fn new(state: &State, mesh_slice: &[Vertex], dimensions: PhysicalSize<u32>) -> Self {
         let vertex_buffer = setup_vertex_buffer(&state.device, mesh_slice);
         let num_vertices = mesh_slice.len() as u32;
-        let (bind_group, texture_layout) = bind_from_texture(texture, &state);
+    
+        // setup input texture, and dependent structures
+        let PhysicalSize { width, height } = dimensions;
+        let texture = state.device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Render input texture"),
+            size: wgpu::Extent3d {width, height, ..Default::default()},
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage:
+                wgpu::TextureUsages::COPY_SRC 
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+        });
+
+        let (bind_group, texture_layout) = bind_from_texture(&texture, &state);
         let render_pipeline = setup_render_pipeline(state, &texture_layout);
 
         Renderer {
             vertex_buffer,
-            render_pipeline,
             num_vertices,
+
+            texture,
+            dimensions,
+            render_pipeline,
             bind_group,
         }
     }
 
-    pub fn render(&self, state: &State) -> Result<(), wgpu::SurfaceError>{
+    pub fn render(&mut self, state: &State, object: impl Renderable) {
+        let texture = object.plot(&self.texture);
+        
+        self.render_to_screen(state).unwrap();
+    }
+
+    fn render_to_screen(&self, state: &State) -> Result<(), wgpu::SurfaceError>{
         // load the window data
         let output = state.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -108,7 +140,6 @@ impl Renderer {
         Ok(())
     }
 }
-
 
 pub const SQUARE: &[Vertex] = &[
     Vertex { position: [-1.0,  1.0, 0.0], uv: [0., 1.] },
