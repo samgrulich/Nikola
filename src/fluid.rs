@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::computer;
 use crate::general::State;
 
@@ -14,18 +16,18 @@ struct Particle {
 unsafe impl bytemuck::Zeroable for Particle {}
 unsafe impl bytemuck::Pod for Particle {}
 
-struct Fluid<'a> {
+pub struct Fluid {
     particles: Vec<Particle>,
 
-    computer: computer::ComputeUnit<'a>,
-    renderer: computer::ComputeUnit<'a>,
-    particles_buffer: wgpu::Buffer, // probbably?
+    computer: computer::ComputeUnit,
+    renderer: computer::ComputeUnit,
+    particles_buffer: Rc<wgpu::Buffer>, // probbably?
 }
 
 // the particles should be loaded onto gpu, and then there is no 
 // subsequent need to read it on the CPU again, thus it should be accessed only 
 // by GPU (shaders)
-impl Fluid<'_> {
+impl Fluid {
     pub async fn new(state: &State, particle_count: usize) -> Fluid {
         // initialize particles with positions
         let mut particles: Vec<Particle> = vec![
@@ -55,11 +57,13 @@ impl Fluid<'_> {
                 | wgpu::BufferUsages::STORAGE,
         });
 
+        let particles_buffer = Rc::new(particles_buffer);
+
         let computer = computer::ComputeUnit::new(
             state,
             computer::Dimensions::new(particle_count.pow(3) as u32, 1), 
             computer::Shader { path: "./res/shaders/compute.wgsl".to_string(), entry_point: "main".to_string() }, 
-            vec![particles_buffer.as_entire_binding()]
+            vec![computer::Entry::Buffer(particles_buffer.clone())]
         ).await;
 
         // intialize render unit

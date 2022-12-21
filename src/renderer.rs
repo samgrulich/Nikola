@@ -89,10 +89,10 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, state: &State, object: impl Renderable) {
+    pub fn render(&mut self, state: &State, object: &impl Renderable) -> Result<(), wgpu::SurfaceError> {
         let texture = object.plot(&self.texture);
         
-        self.render_to_screen(state).unwrap();
+        self.render_to_screen(state)
     }
 
     fn render_to_screen(&self, state: &State) -> Result<(), wgpu::SurfaceError>{

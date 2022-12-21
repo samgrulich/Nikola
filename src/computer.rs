@@ -54,22 +54,40 @@ impl Dimensions {
 }
 
 
-pub struct ComputeUnit<'a> {
+pub enum Entry {
+    TextureView(Rc<wgpu::TextureView>),
+    Buffer(Rc<wgpu::Buffer>),
+}
+
+
+impl Entry {
+    pub fn to_binding_resource(&self) -> wgpu::BindingResource {
+        match self {
+            Self::TextureView(texture_view) => 
+                wgpu::BindingResource::TextureView(texture_view),
+            Self::Buffer(buffer) => 
+                buffer.as_entire_binding(),
+        }
+    }
+}
+
+
+pub struct ComputeUnit {
     pipeline: wgpu::ComputePipeline,
     dimensions: Dimensions,
 
     bind_group: wgpu::BindGroup,
-    entries: Vec<Rc<wgpu::BindGroupEntry<'a>>>,
+    entries: Vec<Entry>,
 }
 
-impl ComputeUnit <'_> {
+impl ComputeUnit {
     /// Create new compute unit
     pub async fn new<'a>(
         state: &State, 
         dimensions: Dimensions, 
         shader: Shader,
-        bg_resources: Vec<wgpu::BindingResource<'a>>,
-    ) -> ComputeUnit<'a> {
+        bg_resources: Vec<Entry>,
+    ) -> Self {
         let pipeline = state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: None, 
@@ -83,7 +101,7 @@ impl ComputeUnit <'_> {
             .map(|(index, resource)| {
                 wgpu::BindGroupEntry {
                     binding: index as u32,
-                    resource: resource.to_owned(),
+                    resource: resource.to_binding_resource(),
                 }
             });
         let entries = entries.collect::<Vec<_>>();
@@ -94,12 +112,7 @@ impl ComputeUnit <'_> {
             entries: entries.as_slice(),
         });
 
-        let entries = entries
-            .iter()
-            .map(|resource| { Rc::new(resource.to_owned()) })
-            .collect::<Vec<_>>();
-
-        ComputeUnit { pipeline, dimensions, bind_group, entries }
+        ComputeUnit { pipeline, dimensions, bind_group, entries: bg_resources }
     }
 
     pub fn execute(&self, state: &State, bind_group: Option<wgpu::BindGroup>, dimensions: Option<Dimensions>) {
@@ -144,7 +157,13 @@ impl ComputeUnit <'_> {
     fn get_entries(&self) -> Vec<BindGroupEntry> {
         let entries = self.entries
             .iter()
-            .map(|entry| { *entry.as_ref() })
+            .enumerate()
+            .map(|(index, entry)| { 
+                wgpu::BindGroupEntry { 
+                    binding: index as u32,
+                    resource: entry.to_binding_resource(),
+                }
+            })
             .collect::<Vec<_>>();
 
        entries 

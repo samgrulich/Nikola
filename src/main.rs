@@ -26,11 +26,12 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     let mut state = general::State::new(&window).await;
 
     // compute shaders setup
-    let computer = computer::compute_config(&state, window.inner_size()).await;
-    let texture = computer.execute(&state);
+    let waser = fluid::Fluid::new(&state, 4).await;
+    // let computer = computer::compute_config(&state, window.inner_size()).await;
+    // let texture = computer.execute(&state);
             
     // render setup
-    let renderer = renderer::Renderer::new(&state, renderer::SQUARE, texture).await;
+    let renderer = renderer::Renderer::new(&state, renderer::SQUARE, window.inner_size()).await;
   
     // main loop
     event_loop.run( move |event, _, control_flow| { 
@@ -57,7 +58,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
                 // Redraw
                 state.update();
 
-                match renderer.render(&state) {
+                match renderer.render(&state, &waser) {
                     Ok(_) => {}
                     // Reconfigure surface if lost
                     Err(wgpu::SurfaceError::Lost) => state.resize(state.raw_dimensions()),
