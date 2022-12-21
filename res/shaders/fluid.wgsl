@@ -12,7 +12,7 @@ struct Particle {
 const H = 10f;
 
 @compute @workgroup_size(8, 8)
-fn main(
+fn step(
     @builtin(global_invocation_id) global_id: vec3<u32>
 ) {
     let local_particle = particles[global_id];
@@ -50,5 +50,7 @@ fn main(
     // write new parctile values to the buffer
 
     // render 
-
 }
+
+@compute @workgroup_size(8, 8)
+fn render(

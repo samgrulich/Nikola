@@ -1,9 +1,10 @@
 use std::rc::Rc;
+use wgpu::util::DeviceExt;
 
 use crate::computer;
+use crate::renderer;
 use crate::general::State;
 
-use wgpu::util::DeviceExt;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -21,7 +22,7 @@ pub struct Fluid {
 
     computer: computer::ComputeUnit,
     renderer: computer::ComputeUnit,
-    particles_buffer: Rc<wgpu::Buffer>, // probbably?
+    particles_buffer: Rc<wgpu::Buffer>,
 }
 
 // the particles should be loaded onto gpu, and then there is no 
@@ -62,15 +63,15 @@ impl Fluid {
         let computer = computer::ComputeUnit::new(
             state,
             computer::Dimensions::new(particle_count.pow(3) as u32, 1), 
-            computer::Shader { path: "./res/shaders/compute.wgsl".to_string(), entry_point: "main".to_string() }, 
+            computer::Shader { path: "./res/shaders/fluid.wgsl".to_string(), entry_point: "step".to_string() }, 
             vec![computer::Entry::Buffer(particles_buffer.clone())]
         ).await;
 
         // intialize render unit
         let render_unit = computer::ComputeUnit::new(
             state,
-            computer::Dimensions::new(1, 1),
-            computer::Shader { path: "./res/shaders/fluid.wgsl".to_string(), entry_point: "main".to_string() },
+            computer::Dimensions::new(state.raw_dimensions()),
+            computer::Shader { path: "./res/shaders/fluid.wgsl".to_string(), entry_point: "render".to_string() },
             vec![]
         ).await;
 
@@ -85,8 +86,15 @@ impl Fluid {
        
         self.computer.execute(state, None, None);
     }
+}
 
-    pub fn render(&self, state: &State) {
 
+impl renderer::Renderable for Fluid {
+    fn plot(&self, state: &State, out_texture: &wgpu::Texture) {
+        self.renderer.execute_render(
+            state, 
+            out_texture, 
+            computer::Dimensions::from_size(state.raw_dimensions()),
+        );
     }
 }

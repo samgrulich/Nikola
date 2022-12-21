@@ -39,10 +39,10 @@ unsafe impl bytemuck::Pod for Vertex { }
 pub trait Renderable {
     /// Render the inner contents of object, then return the Texture reference
     /// ! you need to keep the texture alive
-    fn render(&self, dimensions: PhysicalSize<u32>) -> &wgpu::Texture;
+    // fn render(&self, dimensions: PhysicalSize<u32>) -> &wgpu::Texture;
 
     /// Render contents of the object to the texture
-    fn plot(&self, out_texture: &wgpu::Texture);
+    fn plot(&self, state: &State, out_texture: &wgpu::Texture);
 }
 
 pub struct Renderer{
@@ -65,7 +65,7 @@ impl Renderer {
         let texture = state.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Render input texture"),
             size: wgpu::Extent3d {width, height, ..Default::default()},
-            mip_level_count: 1,
+            mip_level_count: 1, 
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,

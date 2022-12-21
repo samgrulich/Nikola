@@ -31,7 +31,7 @@ async fn run(event_loop: EventLoop<()>, window: Window) {
     // let texture = computer.execute(&state);
             
     // render setup
-    let renderer = renderer::Renderer::new(&state, renderer::SQUARE, window.inner_size()).await;
+    let mut renderer = renderer::Renderer::new(&state, renderer::SQUARE, window.inner_size()).await;
   
     // main loop
     event_loop.run( move |event, _, control_flow| { 
