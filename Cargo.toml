@@ -1,5 +1,5 @@
 [package]
-name = "wgpul"
+name = "nikola"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +7,10 @@ edition = "2021"
 
 [dependencies]
 winit = "0.27"
-env_logger = "0.9"
-log = "0.4"
 wgpu = "0.14"
+# env_logger = "0.9"
+# log = "0.4"
 pollster = "0.2.5"
 bytemuck = "1.12.3"
-image = "0.24.5"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
