@@ -54,6 +54,8 @@ pub mod window {
 }
 
 pub mod backend {
+    const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+
     pub async fn init_backend(window: &winit::window::Window) -> (wgpu::Surface, wgpu::Device, wgpu::Queue) {
         let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
@@ -84,7 +86,7 @@ pub mod backend {
     pub fn init_surface(surface: &wgpu::Surface, device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) {
         surface.configure(device, &wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: wgpu::TextureFormat::Rgba8Unorm, // could request supported from adapter
+            format: FORMAT, // could request supported from adapter
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -92,13 +94,101 @@ pub mod backend {
         })
     }
 
+    pub fn init_render_pipeline(device: &wgpu::Device, screen_shader: &wgpu::ShaderModule) -> wgpu::RenderPipeline {
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render pipeline layout"), 
+            bind_group_layouts: &[],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState { 
+                module: screen_shader,
+                entry_point: "vert_main",
+                buffers: &[],
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                unclipped_depth: false,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            fragment: Some(
+                wgpu::FragmentState { 
+                    module: screen_shader, 
+                    entry_point: "frag_main", 
+                    targets: &[Some(
+                        wgpu::ColorTargetState { 
+                            format: FORMAT, 
+                            blend: Some(wgpu::BlendState::REPLACE), 
+                            write_mask: wgpu::ColorWrites::ALL, 
+                        }
+                    )]
+                }
+            ),
+            multiview: None,
+        });
+
+        pipeline
+    }
 
     pub fn resize_surface(surface: &wgpu::Surface, device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) {
         init_surface(surface, device, size)
     }
 
-    pub fn render() {
+    /// Begin render pass with clear color instructions 
+    fn begin_clear_render_pass<'a>(encoder: &'a mut wgpu::CommandEncoder, view: &'a wgpu::TextureView) -> wgpu::RenderPass<'a> {
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Clear color render pass"),
+            color_attachments: &[
+                Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(
+                            wgpu::Color {
+                                r: 0.,
+                                g: 0., 
+                                b: 0.,
+                                a: 1.,
+                            },
+                        ),
+                        store: true,
+                    }
 
+                })
+            ],
+            depth_stencil_attachment: None,
+        });
+
+        render_pass
+    }
+
+    pub fn render(surface: &wgpu::Surface, device: &wgpu::Device, queue: &wgpu::Queue, pipeline: &wgpu::RenderPipeline) -> Result<(), wgpu::SurfaceError>{
+        let output = surface.get_current_texture()?; 
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Clear color encoder"),
+        });
+
+        {
+            let mut render_pass = begin_clear_render_pass(&mut encoder, &view);
+
+            render_pass.set_pipeline(&pipeline);
+        }
+        
+        queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
     }
 
     pub fn clear_color(surface: &wgpu::Surface, device: &wgpu::Device, queue: &wgpu::Queue) -> Result<(), wgpu::SurfaceError> {
@@ -109,30 +199,7 @@ pub mod backend {
             label: Some("Clear color encoder"),
         });
 
-        {
-            let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Clear color render pass"),
-                color_attachments: &[
-                    Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(
-                                wgpu::Color {
-                                    r: 0.,
-                                    g: 0., 
-                                    b: 0.,
-                                    a: 1.,
-                                },
-                            ),
-                            store: true,
-                        }
-
-                    })
-                ],
-                depth_stencil_attachment: None,
-            });
-        }
+        begin_clear_render_pass(&mut encoder, &view);
 
         queue.submit(std::iter::once(encoder.finish()));
         output.present();
