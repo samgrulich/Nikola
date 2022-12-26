@@ -8,11 +8,18 @@ pub async fn run() {
 
     let (vertex_buffer, index_buffer) = backend::initialize_quad(&device);
 
-    let (out_texture, compute_bind_group, compute_bind_group_layout) = backend::initialize_compute_data(&device, window.inner_size());
+    let (out_texture, compute_bind_group, compute_bind_group_layout, particles) = backend::initialize_compute_data(&device, window.inner_size());
+    let (fluid_bind_group, fluid_bind_group_layout) = backend::init_fluid_data(&device, &particles);
     let (texture_bind_group, texture_bind_group_layout) = backend::get_texure_render_data(&device, &out_texture.create_view(&wgpu::TextureViewDescriptor::default()));
+    
+    // computes init
     let compute_shader = device.create_shader_module(include_wgsl!("../res/shaders/render_shader.wgsl"));
     let compute_pipeline = backend::init_compute_unit(&device, &compute_shader, &compute_bind_group_layout);
 
+    let fluid_shader = device.create_shader_module(include_wgsl!("../res/shaders/fluid_shader.wgsl"));
+    let fluid_pipeline = backend::init_compute_unit(&device, &fluid_shader, &fluid_bind_group_layout);
+
+    // render init
     let screen_shader = device.create_shader_module(include_wgsl!("../res/shaders/screen_shader.wgsl"));
     let screen_pipeline = backend::init_texture_render_pipeline(&device, &screen_shader, &texture_bind_group_layout);
 
@@ -33,6 +40,7 @@ pub async fn run() {
                 }
             }
             Event::MainEventsCleared => {
+                backend::execute_compute_unit(&device, &queue, &fluid_pipeline, &fluid_bind_group, winit::dpi::PhysicalSize { width: 4, height: 4 });
                 backend::execute_compute_unit(&device, &queue, &compute_pipeline, &compute_bind_group, window.inner_size());
 
                 window.request_redraw();
@@ -281,7 +289,7 @@ pub mod backend {
         particles
     }
 
-    pub fn initialize_compute_data(device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) -> (wgpu::Texture, wgpu::BindGroup, wgpu::BindGroupLayout) {
+    pub fn initialize_compute_data(device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) -> (wgpu::Texture, wgpu::BindGroup, wgpu::BindGroupLayout, wgpu::Buffer) {
         // data initialization
         let out_texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Compute unit output texture"),
@@ -349,7 +357,38 @@ pub mod backend {
             ] 
         });
 
-        (out_texture, bind_group, bind_group_layout)
+        (out_texture, bind_group, bind_group_layout, particles)
+    }
+
+    pub fn init_fluid_data<'a>(device: &wgpu::Device, particles: &wgpu::Buffer) -> (wgpu::BindGroup, wgpu::BindGroupLayout) {
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { 
+            label: Some("Fluid bind group layout"), 
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer { 
+                        ty: wgpu::BufferBindingType::Storage { read_only: false }, 
+                        has_dynamic_offset: false, 
+                        min_binding_size: None
+                    },
+                    count: None,
+                }
+            ]
+        }); // or this can be automatically extracted from the shader (by pipeline)
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor { 
+            label: Some("Compute unit bind group"),
+            layout: &bind_group_layout, 
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: particles.as_entire_binding(),
+                }
+            ]
+        });
+
+        (bind_group, bind_group_layout)
     }
 
     pub fn init_compute_unit(device: &wgpu::Device, shader: &wgpu::ShaderModule, bind_group_layout: &wgpu::BindGroupLayout) -> wgpu::ComputePipeline {
