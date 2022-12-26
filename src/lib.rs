@@ -274,14 +274,16 @@ pub mod backend {
         }
     }
 
-    fn create_particle_list(count: u32) -> Vec<[f32; 2]> {
+    fn create_particle_list(count: u32) -> Vec<[f32; 4]> {
         let mut particles = vec![];
 
         for y in 0..count {
             for x in 0..count {
                 particles.push([
                    x as f32, 
-                   y as f32
+                   y as f32,
+                   0f32,
+                   0f32,
                 ]);
             }
         }
