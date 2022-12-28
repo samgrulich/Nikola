@@ -18,7 +18,7 @@ fn main(
     }
 
     let color = vec3(
-        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 4),
+        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 15),
         0f
     );
 
@@ -34,7 +34,8 @@ fn main(
         }
     }
 
-    let color = vec3(0.5f - closest);
+    let dst = 1f - step(0.5f, closest);
+    let color = vec3(dst * 0.4f, 0f, dst);
 
     textureStore(out_texture, pixel_coords, vec4(color, 1f));
 }

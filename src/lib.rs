@@ -1,6 +1,17 @@
-use backend::{resize_surface, render_texture};
-use wgpu::include_wgsl;
+use std::rc::Rc;
+use std::io::Error;
+use std::borrow::Cow;
+use std::fs;
+use backend::FORMAT;
+use backend::render_texture;
 use winit::event::{WindowEvent, Event};
+
+mod binding;
+use crate::binding::*;
+mod pipelines;
+use crate::pipelines::*;
+mod state;
+use crate::state::*;
 
 pub async fn run() {
     let (event_loop, window) = window::init_window();
@@ -40,7 +51,7 @@ pub async fn run() {
                 }
             }
             Event::MainEventsCleared => {
-                backend::execute_compute_unit(&device, &queue, &fluid_pipeline, &fluid_bind_group, winit::dpi::PhysicalSize { width: 4, height: 4 });
+                backend::execute_compute_unit(&device, &queue, &fluid_pipeline, &fluid_bind_group, winit::dpi::PhysicalSize { width: 15, height: 15 });
                 backend::execute_compute_unit(&device, &queue, &compute_pipeline, &compute_bind_group, window.inner_size());
 
                 window.request_redraw();
@@ -78,61 +89,21 @@ pub mod window {
 pub mod backend {
     use wgpu::util::DeviceExt; 
 
-    const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
+    pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
     const QUAD: &[[f32; 5]] = &[
-        [ 1.,  1., 0., 1., 1.],
-        [-1., -1., 0., 0., 0.],
-        [ 1., -1., 0., 1., 0.],
-        [-1.,  1., 0., 0., 1.]
+        Vertex::new([ 1.,  1., 0., 1., 1.]),
+        Vertex::new([-1., -1., 0., 0., 0.]),
+        Vertex::new([ 1., -1., 0., 1., 0.]),
+        Vertex::new([-1.,  1., 0., 0., 1.])
     ];
     const QUAD_INDICES: &[u16; 6] = &[
         0, 1, 2,
         0, 3, 1
     ];
 
-    pub async fn init_backend(window: &winit::window::Window) -> (wgpu::Surface, wgpu::Device, wgpu::Queue) {
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-        let surface = unsafe { instance.create_surface(window) };
-        let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            force_fallback_adapter: false,
-            compatible_surface: Some(&surface),
-        })
-        .await
-        .unwrap();
-
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor { 
-                    label: Some("main device"),
-                    features: wgpu::Features::default(),
-                    limits: wgpu::Limits::downlevel_defaults(),
-                },
-                None
-             )
-            .await
-            .unwrap();
-
-        init_surface(&surface, &device, window.inner_size());
-        (surface, device, queue)
-    }
-    
-    pub fn init_surface(surface: &wgpu::Surface, device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) {
-        surface.configure(device, &wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: FORMAT, // could request supported from adapter
-            width: size.width,
-            height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-        })
-    }
-
     pub fn get_texure_render_data<'a>(device: &wgpu::Device, view: &'a wgpu::TextureView) -> (wgpu::BindGroup, wgpu::BindGroupLayout) {
         let address_mode = wgpu::AddressMode::ClampToEdge;
         let filter_opt = wgpu::FilterMode::Nearest;
-
-
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor { 
             label: Some("Render texutre sampler"), 
             address_mode_u: address_mode, 
@@ -231,10 +202,6 @@ pub mod backend {
         pipeline
     }
 
-    pub fn resize_surface(surface: &wgpu::Surface, device: &wgpu::Device, size: winit::dpi::PhysicalSize<u32>) {
-        init_surface(surface, device, size)
-    }
-
     pub fn initialize_quad(device: &wgpu::Device) -> (wgpu::Buffer, wgpu::Buffer) {
         let vertex_buffer = device.create_buffer_init(
             &wgpu::util::BufferInitDescriptor {
@@ -310,7 +277,7 @@ pub mod backend {
         });
         let out_view = out_texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        let particles_list = create_particle_list(4);
+        let particles_list = create_particle_list(15);
         let particles = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Particle buffer"),
             contents: bytemuck::cast_slice(particles_list.as_slice()),
@@ -526,3 +493,179 @@ pub mod backend {
         Ok(())
     }
 }
+
+pub type Entries = Vec<Box<dyn Resource>>;
+
+pub struct Shader {
+    module: wgpu::ShaderModule,
+    entry_point: &'static str,
+    path: &'static str,
+    visibility: Visibility,
+    
+    entries: Entries,
+
+    bind_group: Option<wgpu::BindGroup>,
+    layout: Option<wgpu::BindGroupLayout>,
+    
+    state: Rc<StateData>,
+}
+
+impl Shader {
+    pub fn new(
+        state: &State, 
+        path: &str, 
+        entry: &str, 
+        visibility: Visibility, 
+        entries: Entries,
+    ) -> Self {
+        let source = fs::read_to_string(path).unwrap().as_str();
+        let state = state.get_state();
+        let module = state.device.create_shader_module(wgpu::ShaderModuleDescriptor { 
+            label: None, 
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
+        });
+
+        let mut this = Shader {
+            module,
+            entry_point: entry,
+            path,
+            visibility,
+            entries,
+            state,
+            bind_group: None,
+            layout: None,
+        };
+
+        this.refresh_binding();
+        this
+    }
+
+    pub fn add_entry(&mut self, entry: Box<dyn Resource>) {
+        self.entries.push(entry);
+        self.refresh_binding();
+    }
+
+    pub fn create_texture(&mut self, size: Size<u32>, usage: wgpu::TextureUsages, access: binding::Access, is_storage: bool) -> &binding::Texture {
+        let texture_data = self.state.device.create_texture(&wgpu::TextureDescriptor { 
+            label: None,
+            size: size.into_extent(),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: Dimension::D2.to_texture(),
+            format: FORMAT,
+            usage,
+        });
+
+        let texture = binding::Texture::new(texture_data, access, is_storage);
+        self.add_entry(Box::new(texture));
+
+        &texture
+    }
+
+    pub fn create_buffer(&mut self) -> binding::Buffer {
+        todo!()
+    }
+
+    pub fn create_buffer_init(&mut self) -> binding::Buffer {
+        todo!()
+    }
+
+    fn refresh_binding(&mut self) {
+        let layouts = self.entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                entry.get_layout(index as u32, self.visibility)
+            })
+            .collect::<Vec<wgpu::BindGroupLayoutEntry>>();
+
+        let layout = self.state.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { 
+            label: None, 
+            entries: layouts.as_slice(),
+        });
+
+
+        let resources = self.entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| {
+                let binding = index as u32;
+                
+                wgpu::BindGroupEntry { 
+                    binding, 
+                    resource: entry.get_resource(binding),
+                }
+            })
+            .collect::<Vec<wgpu::BindGroupEntry>>();
+
+        let bind_group = self.state.device.create_bind_group(&wgpu::BindGroupDescriptor { 
+            label: None, 
+            layout: &layout, 
+            entries: resources.as_slice() 
+        });
+
+        self.layout     = Some(layout);
+        self.bind_group = Some(bind_group);
+    }
+
+    pub fn get_binding(&self) 
+        -> (Option<&wgpu::BindGroup>, Option<&wgpu::BindGroupLayout>) {
+        if let None = self.bind_group {
+            self.refresh_binding();
+        }
+
+        (self.bind_group.as_ref(), self.layout.as_ref())
+    }
+
+    pub fn get_bind_group_(&self) -> Option<&wgpu::BindGroup> {
+        if let None = self.bind_group {
+            self.refresh_binding();
+        }
+
+        self.bind_group.as_ref()
+    }
+    
+    pub fn get_layout(&self) -> Option<&wgpu::BindGroupLayout> {
+        if let None = self.layout { 
+            self.refresh_binding();
+        }
+        
+        self.layout.as_ref()
+    }
+}
+
+pub struct Size<T> {
+    width: T,
+    height: T
+}
+
+impl<T> Size<T> {
+    pub fn new(width: T, height: T) -> Self {
+        Size { width, height }
+    }
+
+    pub fn from_physical(size: winit::dpi::PhysicalSize<T>) -> Self {
+        Size { width: size.width, height: size.height }
+    }
+
+    pub fn into_tuple(&self) -> (T, T) {
+        (self.width, self.height)
+    }
+
+    pub fn into_extent(&self) -> wgpu::Extent3d {
+        wgpu::Extent3d { 
+            width: self.width, 
+            height: self.height, 
+            depth_or_array_layers: 1
+        }
+    }
+}
+// swap chain object 
+    
+// most of the time pipelines:
+// 1. I pipeline - I bind group
+// 2. pipelines are either compute or render and follow simmilar pattern
+// 3. one type visibilities are bound to one pipeline
+//
+// setup 
+// execute

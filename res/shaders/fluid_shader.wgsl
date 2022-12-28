@@ -9,11 +9,11 @@ struct Particle {
 fn main(
     @builtin(global_invocation_id) global_id: vec3<u32>,
 ) {
-    let id = global_id.y * 4u + global_id.x;
+    let id = global_id.y * 15u + global_id.x;
     var particle = particles[id];
    
     // velocity update
-    particle.vel.y -= 0.0001f;
+    particle.vel.y -= 0.0003f;
     for (var i: i32 = 0; i < i32(arrayLength(&particles)); i++) {
         if (i == i32(id)){
             continue;
