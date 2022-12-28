@@ -67,9 +67,17 @@ pub struct RenderPipeline {
 
 impl RenderPipeline {
     pub fn new(state: &State, vertex: Shader, fragment: Shader) -> Self {
-                
-
         let state = state.get_state();
+
+        let texture = fragment.create_texture(
+            state.size, 
+            wgpu::TextureUsages::STORAGE_BINDING | 
+            wgpu::TextureUsages::TEXTURE_BINDING, 
+            binding::Access::Read, // todo implement multiple access types, use this for writing in
+                                   // compute shader
+            true
+        );
+
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[

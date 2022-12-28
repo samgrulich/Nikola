@@ -4,6 +4,8 @@ use std::borrow::Cow;
 use std::fs;
 use backend::FORMAT;
 use backend::render_texture;
+use bytemuck::NoUninit;
+use wgpu::util::DeviceExt;
 use winit::event::{WindowEvent, Event};
 
 mod binding;
@@ -562,12 +564,54 @@ impl Shader {
         &texture
     }
 
-    pub fn create_buffer(&mut self) -> binding::Buffer {
-        todo!()
+    pub fn create_buffer(&mut self, usage: wgpu::BufferUsages, size: u64, access: binding::Access) -> &binding::Buffer {
+        let buffer_data = self.state.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: size as wgpu::BufferAddress,
+            usage,
+            mapped_at_creation: false,
+        });
+
+        let buffer = binding::Buffer::new(buffer_data, access);
+        self.add_entry(Box::new(buffer));
+
+        &buffer
     }
 
-    pub fn create_buffer_init(&mut self) -> binding::Buffer {
-        todo!()
+    pub fn create_buffer_init<T>(&mut self, usage: wgpu::BufferUsages, contents: &[T], access: binding::Access) -> &binding::Buffer 
+        where T: NoUninit
+    {
+        let buffer_data = self.state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(contents),
+            usage
+        });
+
+        let buffer = binding::Buffer::new(buffer_data, access);
+        self.add_entry(Box::new(buffer));
+
+        &buffer
+    }
+
+    pub fn create_sampler(&mut self, access: binding::Access) -> &binding::Sampler {
+        let address_mode = wgpu::AddressMode::ClampToEdge;
+        let filter_mode = wgpu::FilterMode::Linear;
+
+        let sampler_data = self.state.device.create_sampler(&wgpu::SamplerDescriptor { 
+            label: None, 
+            address_mode_u: address_mode, 
+            address_mode_v: address_mode, 
+            address_mode_w: address_mode, 
+            mag_filter: filter_mode, 
+            min_filter: filter_mode, 
+            mipmap_filter: filter_mode, 
+            ..Default::default()
+        });
+
+        let sampler = binding::Sampler::new(sampler_data, access);
+        self.add_entry(Box::new(sampler));
+
+        &sampler
     }
 
     fn refresh_binding(&mut self) {

@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use crate::Size;
 use crate::binding;
 use crate::binding::Visibility;
 use crate::Entries;
@@ -10,6 +11,7 @@ pub struct StateData {
     pub adapter: wgpu::Adapter,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
+    pub size: Size<u32>,
 }
 
 pub struct State {
@@ -66,6 +68,7 @@ impl StateData {
             adapter,
             device,
             queue,
+            size: Size::from_physical(window.inner_size())
         }
     }
 
@@ -105,18 +108,6 @@ impl State {
             visibility, 
             entries
         )
-    }
-
-    pub fn create_texture(&self) -> binding::Texture {
-        todo!()
-    }
-
-    pub fn create_sampler(&self) -> binding::Sampler {
-        todo!()
-    }
-
-    pub fn create_buffer(&self) -> binding::Buffer {
-        todo!()
     }
 
     pub fn get_state(&self) -> Rc<StateData> {

@@ -137,8 +137,8 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(buffer: wgpu::Buffer, access: Access) -> Self {
+        Buffer { buffer, access }
     }
 }
 
@@ -161,6 +161,12 @@ impl Resource for Buffer {
 pub struct Sampler {
     sampler: wgpu::Sampler,
     access: Access,
+}
+
+impl Sampler {
+    pub fn new(sampler: wgpu::Sampler, access: Access) -> Self {
+        Sampler { sampler, access }
+    }
 }
 
 impl Resource for Sampler {
