@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, ops::Deref};
 
 use crate::backend::FORMAT;
 
@@ -172,6 +172,14 @@ pub struct Buffer {
     access: Access,
 }
 
+impl Deref for Buffer {
+    type Target = Box<dyn BufferData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
+}
+
 impl Buffer {
     pub fn new(buffer: wgpu::Buffer, access: Access) -> Self {
         let buffer = Box::new(buffer);
@@ -184,7 +192,7 @@ impl Buffer {
         let binding = Box::new(self.buffer.get_binding()); 
         let data = data.unwrap_or((self.access, ));
 
-        Buffer { buffer: binding, access: data.0}
+        Buffer { buffer: binding, access: data.0 }
     }
 }
 
@@ -208,12 +216,19 @@ impl Resource for Buffer {
 
 pub struct Sampler {
     sampler: wgpu::Sampler,
-    access: Access,
+}
+
+impl Deref for Sampler {
+    type Target = wgpu::Sampler;
+
+    fn deref(&self) -> &Self::Target {
+        &self.sampler
+    }
 }
 
 impl Sampler {
-    pub fn new(sampler: wgpu::Sampler, access: Access) -> Self {
-        Sampler { sampler, access }
+    pub fn new(sampler: wgpu::Sampler) -> Self {
+        Sampler { sampler }
     }
 }
 

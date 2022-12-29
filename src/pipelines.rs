@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use wgpu::util::DeviceExt;
+
 use crate::Shader;
 
 use crate::state::*;
@@ -6,10 +8,15 @@ use crate::binding;
 use crate::Size;
 
 
+#[repr(C)]
+#[derive(Copy, Clone)]
 pub struct Vertex {
     position: [f32; 3],
     uv: [f32; 2],
 }
+
+unsafe impl bytemuck::Zeroable for Vertex { }
+unsafe impl bytemuck::Pod for Vertex { }
 
 impl Vertex {
     pub fn new(data: [f32; 5]) -> Self {
@@ -58,8 +65,12 @@ const RECT: Rect = Rect {
 };
 
 pub struct RenderPipeline {
-    texture: wgpu::Texture,
-    sampler: wgpu::Sampler,
+    texture: binding::Texture,
+    vertex: Shader,
+    fragment: Shader,
+
+    vertex_buffer: wgpu::Buffer,
+    index_buffer: wgpu::Buffer,
 
     pipeline: wgpu::RenderPipeline,
     state: Rc<StateData>,
@@ -67,17 +78,34 @@ pub struct RenderPipeline {
 
 impl RenderPipeline {
     pub fn new(state: &State, vertex: Shader, fragment: Shader) -> Self {
-        let state = state.get_state();
-
-        let texture = fragment.create_texture(
+        // setup the inputs
+        let texture = state.create_texture(
             state.size, 
             wgpu::TextureUsages::STORAGE_BINDING | 
             wgpu::TextureUsages::TEXTURE_BINDING, 
-            binding::Access::Read, // todo implement multiple access types, use this for writing in
-                                   // compute shader
+            binding::Access::Read,
             true
         );
 
+        let sampler = fragment.create_sampler();
+
+        let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex buffer"),
+            contents: bytemuck::cast_slice(RECT.vertices.as_slice()),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index buffer"),
+            contents: bytemuck::cast_slice(RECT.indices.as_slice()),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        
+        let state = state.get_state();
+
+        // bind the generic inputs
+        fragment.add_entry(Box::new(texture.get_view(None)));
+
+        // setup the pipeline 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
@@ -120,7 +148,45 @@ impl RenderPipeline {
             multiview: None,
         });
 
-        todo!()
+        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state }
+    }
+
+    /// Creates render pass with instructions to clear display in place
+    fn begin_render_pass<'a>(encoder: &'a mut wgpu::CommandEncoder, view: &'a wgpu::TextureView) -> wgpu::RenderPass<'a> {
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor { 
+            label: Some("Render pipeline pass"), 
+            color_attachments: &[
+                Some(wgpu::RenderPassColorAttachment { 
+                    view, 
+                    resolve_target: None, 
+                    ops: wgpu::Operations { 
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: true, 
+                    } 
+                }),
+            ], 
+            depth_stencil_attachment: None,
+        })
+    }
+
+    pub fn render(&self) -> Result<(), wgpu::SurfaceError> { 
+        let output = self.state.surface.get_current_texture()?;
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render pipeline command encoder"),
+        });
+
+        {
+            let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
+
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..6, 0, 0..2);
+        }
+
+        Ok(())
     }
 }
 
@@ -128,13 +194,20 @@ impl RenderPipeline {
 
 pub struct ComputePipeline {
     pipeline: wgpu::ComputePipeline,
-    size: Size<u32>
+
+    shader: Shader,
+
+    size: Size<u32>,
+    size_z: Option<u32>,
+    state: Rc<StateData>
 }
 
 impl ComputePipeline {
-    pub fn new() -> Self {
+    pub fn new(shader: Shader) -> Self {
         todo!()
     }
 
     pub fn resize() { }
+
+    pub fn execute() { }
 }

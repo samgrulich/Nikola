@@ -1,4 +1,8 @@
+use std::ops::Deref;
 use std::rc::Rc;
+
+use bytemuck::NoUninit;
+use wgpu::util::DeviceExt;
 
 use crate::Size;
 use crate::binding;
@@ -78,6 +82,13 @@ impl StateData {
     }
 }
 
+impl Deref for State {
+    type Target = StateData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
 
 impl State {
     pub fn new(state: StateData) -> Self {
@@ -113,4 +124,61 @@ impl State {
     pub fn get_state(&self) -> Rc<StateData> {
         self.state.clone()
     }
+
+    /// Create generic texture 
+    pub fn create_texture(
+        &self, 
+        size: Size<u32>, 
+        usage: wgpu::TextureUsages,
+        access: binding::Access,
+        is_storage: bool,
+    ) -> binding::Texture {
+        let texture = self.device.create_texture(&wgpu::TextureDescriptor{
+            label: None,
+            size: size.into_extent(),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: binding::Dimension::D2.to_texture(),
+            format: FORMAT,
+            usage,
+        });
+
+        binding::Texture::new(texture, access, is_storage)
+    }
+
+    /// Create new empty unmapped buffer
+    pub fn create_buffer(
+        &self, 
+         size: u64, 
+         usage: wgpu::BufferUsages,
+         access: binding::Access,
+    ) -> binding::Buffer {
+        let buffer = self.device.create_buffer(&wgpu::BufferDescriptor{
+            label: None,
+            size: size as wgpu::BufferAddress,
+            usage,
+            mapped_at_creation: false,
+        });
+
+        binding::Buffer::new(buffer, access)
+    }
+
+    /// Create new buffer initialized with data
+    pub fn create_buffer_init<T>(
+        &self, 
+        contents: &[T], 
+        usage: wgpu::BufferUsages,
+        access: binding::Access,
+    )-> binding::Buffer 
+        where T: NoUninit 
+    {
+        let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor{
+            label: None,
+            contents: bytemuck::cast_slice(contents),
+            usage,
+        });
+
+        binding::Buffer::new(buffer, access)
+    }
+
 }

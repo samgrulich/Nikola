@@ -498,6 +498,8 @@ pub mod backend {
 
 pub type Entries = Vec<Box<dyn Resource>>;
 
+/// Group all shader metadata with the module
+///     use new method to create new
 pub struct Shader {
     module: wgpu::ShaderModule,
     entry_point: &'static str,
@@ -513,6 +515,7 @@ pub struct Shader {
 }
 
 impl Shader {
+    /// Create new shader object
     pub fn new(
         state: &State, 
         path: &str, 
@@ -593,7 +596,7 @@ impl Shader {
         &buffer
     }
 
-    pub fn create_sampler(&mut self, access: binding::Access) -> &binding::Sampler {
+    pub fn create_sampler(&mut self) -> &binding::Sampler {
         let address_mode = wgpu::AddressMode::ClampToEdge;
         let filter_mode = wgpu::FilterMode::Linear;
 
@@ -608,7 +611,7 @@ impl Shader {
             ..Default::default()
         });
 
-        let sampler = binding::Sampler::new(sampler_data, access);
+        let sampler = binding::Sampler::new(sampler_data);
         self.add_entry(Box::new(sampler));
 
         &sampler
@@ -679,7 +682,7 @@ impl Shader {
 }
 
 
-
+/// Specify 2D size (width, height)
 pub struct Size<T> 
 where T: num_traits::Unsigned
 {
