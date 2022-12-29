@@ -4,11 +4,7 @@ use std::rc::Rc;
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
 
-use crate::Size;
-use crate::binding;
-use crate::binding::Visibility;
-use crate::Entries;
-use crate::Shader;
+use crate::{FORMAT, Size, binding::{self, Visibility}, Entries, Shader};
 
 pub struct StateData {
     pub surface: wgpu::Surface,
@@ -22,7 +18,6 @@ pub struct State {
     state: Rc<StateData>,
 }
 
-const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm; 
 
 /// init wgpu surface with my default values
 fn config_surface(

@@ -1,8 +1,8 @@
-use std::{rc::Rc, ops::Deref};
+use std::{rc::Rc, ops::{Deref, DerefMut}};
 
-use crate::Size;
-use crate::backend::FORMAT;
+use crate::FORMAT;
 
+#[derive(Copy, Clone)]
 pub enum Access {
     Write,
     Read,
@@ -28,6 +28,7 @@ impl Access {
     }
 }
 
+#[derive(Copy, Clone)]
 /// Describe how many dimensions is your array structured in
 pub enum Dimension {
     D1,
@@ -78,7 +79,7 @@ pub trait Resource {
     fn get_layout(&self, binding: u32, visibility: Visibility) -> wgpu::BindGroupLayoutEntry;
 
     /// get binding resource of this resource
-    fn get_resource(&self, binding: u32) -> wgpu::BindingResource;
+    fn get_resource(&self) -> wgpu::BindingResource;
 }
 
 fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType) -> wgpu::BindGroupLayoutEntry {
@@ -92,9 +93,33 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
 
 
 
+pub struct TextureData {
+    texture: wgpu::Texture,
+}
+
+impl Deref for TextureData {
+    type Target = wgpu::Texture;
+
+    fn deref(&self) -> &Self::Target {
+        &self.texture
+    }
+}
+
+impl DerefMut for TextureData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.texture
+    }
+}
+
+impl TextureData {
+    pub fn new(texture: wgpu::Texture) -> Self {
+        TextureData { texture }
+    }
+}
+
 /// Contains texture and additional data
 pub struct Texture {
-    texture: Rc<wgpu::Texture>,
+    texture: Rc<TextureData>,
     access: Access,
     dimension: Dimension,
     is_storage: bool,
@@ -102,7 +127,7 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(texture: wgpu::Texture, access: Access, is_storage: bool) -> Self {
-        let texture = Rc::new(texture);
+        let texture = Rc::new(TextureData::new(texture));
         Texture { 
             texture, 
             access, 
@@ -112,8 +137,8 @@ impl Texture {
     }
 
     /// Swap texture
-    pub unsafe fn swap_texture(&mut self, new_texture: wgpu::Texture) {
-        let texture_ptr: *mut wgpu::Texture = &mut *self.texture;
+    pub unsafe fn swap_texture(&mut self, mut new_texture: wgpu::Texture) {
+        let texture_ptr: *mut wgpu::Texture = &mut **self.texture;
         let new_texture_ptr: *mut wgpu::Texture = &mut new_texture;
         
         // swap the textures
@@ -155,7 +180,7 @@ impl Resource for Texture {
         get_layout_entry(binding, visibility, ty)
     }
     
-    fn get_resource(&self, binding: u32) -> wgpu::BindingResource {
+    fn get_resource(&self) -> wgpu::BindingResource {
         let view = self.texture.create_view(&wgpu::TextureViewDescriptor::default());
         wgpu::BindingResource::TextureView(&view) // possible early free of memory
     }
@@ -220,7 +245,7 @@ impl Resource for Buffer {
         get_layout_entry(binding, visibility, ty)
     }
 
-    fn get_resource(&self, binding: u32) -> wgpu::BindingResource {
+    fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Buffer(self.buffer.get_binding())
     }
 }
@@ -251,7 +276,7 @@ impl Resource for Sampler {
         get_layout_entry(binding, visibility, ty)
     }
 
-    fn get_resource(&self, binding: u32) -> wgpu::BindingResource {
+    fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Sampler(&self.sampler)
     }
 }

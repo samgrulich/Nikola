@@ -3,7 +3,6 @@ use wgpu::util::DeviceExt;
 
 use crate::Shader;
 
-use crate::backend::FORMAT;
 use crate::state::*;
 use crate::binding;
 use crate::Size;
