@@ -1,5 +1,6 @@
 use std::{rc::Rc, ops::Deref};
 
+use crate::Size;
 use crate::backend::FORMAT;
 
 pub enum Access {
@@ -93,7 +94,7 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
 
 /// Contains texture and additional data
 pub struct Texture {
-    texture: Box<Rc<wgpu::Texture>>,
+    texture: Rc<wgpu::Texture>,
     access: Access,
     dimension: Dimension,
     is_storage: bool,
@@ -101,13 +102,25 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(texture: wgpu::Texture, access: Access, is_storage: bool) -> Self {
-        let texture = Box::new(Rc::new(texture));
+        let texture = Rc::new(texture);
         Texture { 
             texture, 
             access, 
             dimension: Dimension::D2, 
             is_storage,
         }
+    }
+
+    /// Swap texture
+    pub unsafe fn swap_texture(&mut self, new_texture: wgpu::Texture) {
+        let texture_ptr: *mut wgpu::Texture = &mut *self.texture;
+        let new_texture_ptr: *mut wgpu::Texture = &mut new_texture;
+        
+        // swap the textures
+        texture_ptr.swap(new_texture_ptr);
+
+        // clean the old texture
+        new_texture_ptr.drop_in_place();
     }
 
     /// Get separate view of this texture data, and you can specify texture access data 

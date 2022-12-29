@@ -80,6 +80,23 @@ impl StateData {
     pub fn resize(&self, size: winit::dpi::PhysicalSize<u32>) {
         config_surface(&self.surface, &self.device, size);
     }
+
+    /// Create new raw texture with my custom default params
+    pub fn create_raw_texture(
+        &self,
+        size: Size<u32>,
+        usage: wgpu::TextureUsages,
+    ) -> wgpu::Texture {
+        self.device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: size.into_extent(),
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: binding::Dimension::D2.to_texture(),
+            format: FORMAT,
+            usage,
+        })
+    }
 }
 
 impl Deref for State {
@@ -180,5 +197,4 @@ impl State {
 
         binding::Buffer::new(buffer, access)
     }
-
 }

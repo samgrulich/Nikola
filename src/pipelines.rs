@@ -3,6 +3,7 @@ use wgpu::util::DeviceExt;
 
 use crate::Shader;
 
+use crate::backend::FORMAT;
 use crate::state::*;
 use crate::binding;
 use crate::Size;
@@ -169,6 +170,20 @@ impl RenderPipeline {
         })
     }
 
+    /// !!! Not fully implemented, may cause bugs (bind group missalignments)
+    fn resize(&mut self, size: Size<u32>) {
+        let usage = wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING;
+        let new_texture = self.state.create_raw_texture(size, usage);
+
+        unsafe {
+            self.texture.swap_texture(new_texture);
+        }
+
+        self.fragment.refresh_binding();
+        // todo: implement dynamic update of pipeline and its layout
+    }
+
+    /// Plot input texture onto the surface
     pub fn render(&self) -> Result<(), wgpu::SurfaceError> { 
         let output = self.state.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -186,6 +201,9 @@ impl RenderPipeline {
             render_pass.draw_indexed(0..6, 0, 0..2);
         }
 
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
         Ok(())
     }
 }
@@ -193,21 +211,89 @@ impl RenderPipeline {
 
 
 pub struct ComputePipeline {
+    state: Rc<StateData>,
     pipeline: wgpu::ComputePipeline,
 
     shader: Shader,
 
+    workgroup_size: Size<u32>, // size of single work group
+    workgroups: Option<Size<u32>>, // work groups count
     size: Size<u32>,
     size_z: Option<u32>,
-    state: Rc<StateData>
 }
 
 impl ComputePipeline {
-    pub fn new(shader: Shader) -> Self {
-        todo!()
+    pub fn new(state: &State, shader: Shader, size: Size<u32>, workgroup_size: Option<Size<u32>>) -> Self {
+        let workgroup_size = workgroup_size.unwrap_or(Size { width: 8u32, height: 8u32 });
+
+        let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
+            label: None, 
+            bind_group_layouts: &[
+                &shader.get_layout().unwrap()
+            ],
+            push_constant_ranges: &[]
+        });
+        let pipeline = state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: None,
+            layout: Some(&layout),
+            module: &shader.module,
+            entry_point: shader.entry_point,
+        });
+
+        let result = ComputePipeline { 
+            state: state.get_state(), 
+            pipeline, 
+            shader, 
+            workgroup_size,
+            workgroups: None,
+            size, 
+            size_z: None 
+        };
+        result.compute_workgroups();
+
+        result
     }
 
-    pub fn resize() { }
+    /// Get the count of workgroups needed to be dispatched
+    fn compute_workgroups(&mut self) {
+        let workgroups = self.size.fit_other(self.workgroup_size);
 
-    pub fn execute() { }
+        self.workgroups = Some(workgroups);
+    }
+
+
+    /// Future public function: not implemented fully, 
+    /// it's useless for now
+    fn resize(&mut self, size: Size<u32>) { 
+       self.size = size; 
+       self.compute_workgroups();
+       self.shader.refresh_binding();
+       // todo: refresh the pipeline and layout
+
+       // todo: implement TextureComputePipelines
+    }
+
+    /// Execute the shader
+    pub fn execute(&self) {
+        let bind_group = self.shader.bind_group.unwrap();
+        let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: None,
+        });
+
+        {
+            let compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { 
+                label: None
+            });
+
+            let workgroups = self.workgroups.unwrap_or_else(|| {
+                self.size.fit_other(self.workgroup_size)
+            });
+
+            compute_pass.set_pipeline(&self.pipeline);
+            compute_pass.set_bind_group(0, &bind_group, &[]);
+            compute_pass.dispatch_workgroups(workgroups.width, workgroups.height, 1);
+        }
+
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+    }
 }

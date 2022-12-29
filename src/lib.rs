@@ -1,3 +1,4 @@
+use std::iter::Enumerate;
 use std::rc::Rc;
 use std::borrow::Cow;
 use std::fs;
@@ -701,8 +702,16 @@ where T: num_traits::Unsigned, u32: From<T>
         Size { width: size.width, height: size.height }
     }
 
+    pub fn from_tuple(tuple: (T, T)) -> Self {
+        Size { width: tuple.0, height: tuple.1 }
+    }
+
     pub fn into_tuple(&self) -> (T, T) {
         (self.width, self.height)
+    }
+
+    pub fn into_u32_tuple(&self) -> (u32, u32) {
+        (self.width.into(), self.height.into())
     }
 
     pub fn into_extent(&self) -> wgpu::Extent3d {
@@ -712,7 +721,20 @@ where T: num_traits::Unsigned, u32: From<T>
             depth_or_array_layers: 1
         }
     }
+    
+    /// Compute how many times will the other fit into this size 
+    /// ceiled to nearest integer
+    pub fn fit_other(&self, other: Size<u32>) -> Size<u32> {
+        let this = self.into_u32_tuple();
+        let other = other.into_u32_tuple();
+
+        let width  = (this.0 + other.0 - 1) / other.0;
+        let height  = (this.1 + other.1 - 1) / other.1;
+
+        Size { width, height }
+    }
 }
+
 // swap chain object 
     
 // most of the time pipelines:
