@@ -1,17 +1,17 @@
 use std::rc::Rc;
-use std::io::Error;
 use std::borrow::Cow;
 use std::fs;
 use backend::FORMAT;
 use backend::render_texture;
 use bytemuck::NoUninit;
+use num_traits::Float;
 use wgpu::util::DeviceExt;
 use winit::event::{WindowEvent, Event};
 
 mod binding;
 use crate::binding::*;
 mod pipelines;
-use crate::pipelines::*;
+//use crate::pipelines::*;
 mod state;
 use crate::state::*;
 
@@ -678,12 +678,18 @@ impl Shader {
     }
 }
 
-pub struct Size<T> {
+
+
+pub struct Size<T> 
+where T: num_traits::Unsigned
+{
     width: T,
     height: T
 }
 
-impl<T> Size<T> {
+impl<T> Size<T>
+where T: num_traits::Unsigned, u32: From<T> 
+{
     pub fn new(width: T, height: T) -> Self {
         Size { width, height }
     }
@@ -698,8 +704,8 @@ impl<T> Size<T> {
 
     pub fn into_extent(&self) -> wgpu::Extent3d {
         wgpu::Extent3d { 
-            width: self.width, 
-            height: self.height, 
+            width: self.width.into(), 
+            height: self.height.into(), 
             depth_or_array_layers: 1
         }
     }

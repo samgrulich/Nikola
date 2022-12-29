@@ -801,6 +801,7 @@ name = "nikola"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "num-traits",
  "pollster",
  "tracing",
  "tracing-subscriber",

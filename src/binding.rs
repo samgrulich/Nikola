@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::backend::FORMAT;
 
 pub enum Access {
@@ -87,9 +89,11 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
     }
 }
 
+
+
 /// Contains texture and additional data
 pub struct Texture {
-    texture: wgpu::Texture,
+    texture: Box<Rc<wgpu::Texture>>,
     access: Access,
     dimension: Dimension,
     is_storage: bool,
@@ -97,11 +101,24 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(texture: wgpu::Texture, access: Access, is_storage: bool) -> Self {
+        let texture = Box::new(Rc::new(texture));
         Texture { 
             texture, 
             access, 
             dimension: Dimension::D2, 
-            is_storage
+            is_storage,
+        }
+    }
+
+    /// Get separate view of this texture data, and you can specify texture access data 
+    pub fn get_view(&self, data: Option<(Access, Dimension, bool)>) -> Texture {
+        let data = data.unwrap_or((self.access, self.dimension, self.is_storage));
+
+        Texture { 
+            texture: self.texture.clone(), 
+            access: data.0, 
+            dimension: data.1,
+            is_storage: data.2,
         }
     }
 }
@@ -131,14 +148,43 @@ impl Resource for Texture {
     }
 }
 
+
+
+/// Trait that signifies the data is referencing buffer
+pub trait BufferData {
+    fn get_binding(&self) -> wgpu::BufferBinding;
+}
+
+impl BufferData for wgpu::Buffer {
+    fn get_binding(&self) -> wgpu::BufferBinding {
+        self.as_entire_buffer_binding()
+    }
+}
+
+impl<'a> BufferData for wgpu::BufferBinding<'a> {
+    fn get_binding(&self) -> wgpu::BufferBinding {
+        self.clone()
+    }
+}
+
 pub struct Buffer {
-    buffer: wgpu::Buffer,
+    buffer: Box<dyn BufferData>,
     access: Access,
 }
 
 impl Buffer {
     pub fn new(buffer: wgpu::Buffer, access: Access) -> Self {
+        let buffer = Box::new(buffer);
+
         Buffer { buffer, access }
+    }
+
+    /// Get buffer binding of this buffer data and specify additional access data
+    pub fn get_binding(&self, data: Option<(Access,)>) -> Buffer {
+        let binding = Box::new(self.buffer.get_binding()); 
+        let data = data.unwrap_or((self.access, ));
+
+        Buffer { buffer: binding, access: data.0}
     }
 }
 
@@ -154,9 +200,11 @@ impl Resource for Buffer {
     }
 
     fn get_resource(&self, binding: u32) -> wgpu::BindingResource {
-        wgpu::BindingResource::Buffer(self.buffer.as_entire_buffer_binding())
+        wgpu::BindingResource::Buffer(self.buffer.get_binding())
     }
 }
+
+
 
 pub struct Sampler {
     sampler: wgpu::Sampler,
