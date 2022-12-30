@@ -4,7 +4,7 @@ use std::rc::Rc;
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
 
-use crate::{FORMAT, Size, binding::{self, Visibility}, Entries, Shader};
+use crate::backend::{FORMAT, Size, binding::{self, Visibility}, Entries, Shader};
 
 pub struct StateData {
     pub surface: wgpu::Surface,
@@ -103,7 +103,8 @@ impl Deref for State {
 }
 
 impl State {
-    pub fn new(state: StateData) -> Self {
+    pub async fn new(window: &winit::window::Window) -> Self {
+        let state = StateData::new(window).await;
         let state = Rc::new(state);
         
         State {

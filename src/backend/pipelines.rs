@@ -1,11 +1,11 @@
 use std::rc::Rc;
 use wgpu::util::DeviceExt;
 
-use crate::Shader;
+use crate::backend::Shader;
 
-use crate::state::*;
-use crate::binding;
-use crate::Size;
+use crate::backend::state::*;
+use crate::backend::binding;
+use crate::backend::Size;
 
 
 #[repr(C)]

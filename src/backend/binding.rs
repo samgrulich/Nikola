@@ -1,6 +1,6 @@
 use std::{rc::Rc, ops::Deref};
 
-use crate::FORMAT;
+use crate::backend::FORMAT;
 
 #[derive(Copy, Clone)]
 pub enum Access {
@@ -248,3 +248,4 @@ impl Resource for Sampler {
         wgpu::BindingResource::Sampler(&self.sampler)
     }
 }
+
