@@ -2,7 +2,7 @@ use std::{rc::Rc, ops::Deref};
 
 use crate::backend::FORMAT;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Access {
     Write,
     Read,
@@ -28,7 +28,7 @@ impl Access {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 /// Describe how many dimensions is your array structured in
 pub enum Dimension {
     D1,
@@ -56,7 +56,7 @@ impl Dimension {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 /// Describe what shader stage is able to access this data
 pub enum Visibility {
     VERTEX,
@@ -93,6 +93,7 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
 }
 
 
+#[derive(Debug)]
 /// Contains texture and additional data
 pub struct Texture {
     texture: Rc<wgpu::Texture>,
@@ -172,6 +173,7 @@ impl Resource for Texture {
 
 
 
+#[derive(Debug)]
 /// Trait that signifies the data is referencing buffer
 pub struct Buffer {
     buffer: Rc<wgpu::Buffer>,
@@ -220,6 +222,7 @@ impl Resource for Buffer {
 
 
 
+#[derive(Debug)]
 pub struct Sampler {
     sampler: wgpu::Sampler,
 }

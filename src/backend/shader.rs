@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::{rc::Rc, borrow::Cow, fs};
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
@@ -5,6 +6,7 @@ use wgpu::util::DeviceExt;
 use crate::backend::binding::*;
 use crate::backend::State;
 use crate::backend::*;
+
 
 pub type Entries = Vec<Box<dyn Resource>>;
 

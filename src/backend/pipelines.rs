@@ -85,7 +85,7 @@ impl RenderPipeline {
             wgpu::TextureUsages::STORAGE_BINDING | 
             wgpu::TextureUsages::TEXTURE_BINDING, 
             binding::Access::Read,
-            true
+            false
         );
 
             // segup specific inputs
@@ -109,11 +109,13 @@ impl RenderPipeline {
         // bind the generic inputs
         fragment.add_entry(Box::new(texture.get_view(None)));
 
+        dbg!(fragment.get_binding());
+
         // setup the pipeline 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
-                &fragment.get_layout().unwrap(),
+                fragment.get_layout().unwrap(),
             ], 
             push_constant_ranges: &[]
         });
@@ -142,7 +144,7 @@ impl RenderPipeline {
                     entry_point: fragment.entry_point, 
                     targets: &[Some(
                         wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb, // todo FORMAT?
+                            format: wgpu::TextureFormat::Rgba8Unorm, // todo FORMAT?
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }
@@ -164,7 +166,7 @@ impl RenderPipeline {
                     view, 
                     resolve_target: None, 
                     ops: wgpu::Operations { 
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
                         store: true, 
                     } 
                 }),
@@ -187,7 +189,7 @@ impl RenderPipeline {
     }
 
     /// Plot input texture onto the surface
-    pub fn render(&self) -> Result<(), wgpu::SurfaceError> { 
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> { 
         let output = self.state.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -199,6 +201,7 @@ impl RenderPipeline {
             let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
 
             render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..6, 0, 0..2);

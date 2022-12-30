@@ -20,15 +20,16 @@ fn vert_main(
     return out;
 }
 
-@group(0) @binding(0) var t_diffuse: texture_2d<f32>;
-@group(0) @binding(1) var s_diffuse: sampler;
+@group(0) @binding(0) var s_diffuse: sampler;
+@group(0) @binding(1) var t_diffuse: texture_2d<f32>;
 
 @fragment
 fn frag_main(
     in: VertOut
 ) -> @location(0) vec4<f32> {
-    let diffuse = textureSample(t_diffuse, s_diffuse, in.uv);
-    let color = diffuse;
+    //let diffuse = textureSample(t_diffuse, s_diffuse, in.uv);
+    //let color = diffuse;
+    let color = vec4(1f);
 
     return color;
 }
