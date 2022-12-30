@@ -119,8 +119,8 @@ impl State {
     /// Create new shader 
     pub fn create_shader(
         &self,
-        path: &str,
-        entry: &str,
+        path: &'static str,
+        entry: &'static str,
         visibility: Visibility,
         entries: Entries
     ) -> Shader {

@@ -81,7 +81,8 @@ impl Shader {
         self.refresh_binding();
     }
 
-    pub fn create_texture(&mut self, size: Size<u32>, usage: wgpu::TextureUsages, access: binding::Access, is_storage: bool) -> &Box<binding::Texture> {
+    /// Create shader specific texture
+    pub fn create_texture(&mut self, size: Size<u32>, usage: wgpu::TextureUsages, access: binding::Access, is_storage: bool) {
         let texture_data = self.state.device.create_texture(&wgpu::TextureDescriptor { 
             label: None,
             size: size.into_extent(),
@@ -92,13 +93,12 @@ impl Shader {
             usage,
         });
 
-        let texture = Box::new(binding::Texture::new(texture_data, access, is_storage));
-        self.add_entry(texture);
-
-        &texture
+        let texture = binding::Texture::new(texture_data, access, is_storage);
+        self.add_entry(Box::new(texture));
     }
 
-    pub fn create_buffer(&mut self, usage: wgpu::BufferUsages, size: u64, access: binding::Access) -> &binding::Buffer {
+    /// Create shader specific empty unmapped buffer
+    pub fn create_buffer(&mut self, usage: wgpu::BufferUsages, size: u64, access: binding::Access) {
         let buffer_data = self.state.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: size as wgpu::BufferAddress,
@@ -108,11 +108,10 @@ impl Shader {
 
         let buffer = binding::Buffer::new(buffer_data, access);
         self.add_entry(Box::new(buffer));
-
-        &buffer
     }
 
-    pub fn create_buffer_init<T>(&mut self, usage: wgpu::BufferUsages, contents: &[T], access: binding::Access) -> &binding::Buffer 
+    /// Create shader specific buffer with data in it
+    pub fn create_buffer_init<T>(&mut self, usage: wgpu::BufferUsages, contents: &[T], access: binding::Access)
         where T: NoUninit
     {
         let buffer_data = self.state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -123,11 +122,10 @@ impl Shader {
 
         let buffer = binding::Buffer::new(buffer_data, access);
         self.add_entry(Box::new(buffer));
-
-        &buffer
     }
 
-    pub fn create_sampler(&mut self) -> &binding::Sampler {
+    /// Create shader specific sampler (Linear filtering)
+    pub fn create_sampler(&mut self) {
         let address_mode = wgpu::AddressMode::ClampToEdge;
         let filter_mode = wgpu::FilterMode::Linear;
 
@@ -144,8 +142,6 @@ impl Shader {
 
         let sampler = binding::Sampler::new(sampler_data);
         self.add_entry(Box::new(sampler));
-
-        &sampler
     }
 
     fn refresh_binding(&mut self) {
@@ -195,7 +191,7 @@ impl Shader {
         (self.bind_group.as_ref(), self.layout.as_ref())
     }
 
-    pub fn get_bind_group_(&mut self) -> Option<&wgpu::BindGroup> {
+    pub fn get_bind_group(&mut self) -> Option<&wgpu::BindGroup> {
         if let None = self.bind_group {
             self.refresh_binding();
         }
@@ -213,6 +209,7 @@ impl Shader {
 }
 
 
+#[derive(Copy, Clone)]
 /// Specify 2D size (width, height)
 pub struct Size<T> 
 where T: num_traits::Unsigned

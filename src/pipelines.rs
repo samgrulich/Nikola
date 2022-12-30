@@ -26,7 +26,7 @@ impl Vertex {
         }
     }
 
-    pub fn desc() -> wgpu::VertexBufferLayout<'static> {
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -38,7 +38,7 @@ impl Vertex {
                 },
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
-                    offset: std::mem::size_of::<[f32; 3]> as wgpu::BufferAddress,
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
                 }
             ],
@@ -53,10 +53,10 @@ pub struct Rect {
 
 const RECT: Rect = Rect {
     vertices: [
-        Vertex::new([ 1.,  1., 0., 1., 1.]),
-        Vertex::new([-1., -1., 0., 0., 0.]),
-        Vertex::new([ 1., -1., 0., 1., 0.]),
-        Vertex::new([-1.,  1., 0., 0., 1.])
+        Vertex { position: [ 1.,  1., 0.], uv: [1., 1.]},
+        Vertex { position: [-1., -1., 0.], uv: [0., 0.]},
+        Vertex { position: [ 1., -1., 0.], uv: [1., 0.]},
+        Vertex { position: [-1.,  1., 0.], uv: [0., 1.]},
     ],
     indices: [
         0, 1, 2,
@@ -77,8 +77,9 @@ pub struct RenderPipeline {
 }
 
 impl RenderPipeline {
-    pub fn new(state: &State, vertex: Shader, fragment: Shader) -> Self {
+    pub fn new(state: &State, vertex: Shader, mut fragment: Shader) -> Self {
         // setup the inputs
+            // setup generic inputs
         let texture = state.create_texture(
             state.size, 
             wgpu::TextureUsages::STORAGE_BINDING | 
@@ -87,8 +88,10 @@ impl RenderPipeline {
             true
         );
 
-        let sampler = fragment.create_sampler();
+            // segup specific inputs
+        fragment.create_sampler();
 
+           // setup exceptional inputs
         let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
             contents: bytemuck::cast_slice(RECT.vertices.as_slice()),
@@ -99,7 +102,8 @@ impl RenderPipeline {
             contents: bytemuck::cast_slice(RECT.indices.as_slice()),
             usage: wgpu::BufferUsages::INDEX,
         });
-        
+       
+            // clone state ref
         let state = state.get_state();
 
         // bind the generic inputs
@@ -222,13 +226,13 @@ pub struct ComputePipeline {
 }
 
 impl ComputePipeline {
-    pub fn new(state: &State, shader: Shader, size: Size<u32>, workgroup_size: Option<Size<u32>>) -> Self {
+    pub fn new(state: &State, mut shader: Shader, size: Size<u32>, workgroup_size: Option<Size<u32>>) -> Self {
         let workgroup_size = workgroup_size.unwrap_or(Size { width: 8u32, height: 8u32 });
 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
-                &shader.get_layout().unwrap()
+                shader.get_layout().unwrap()
             ],
             push_constant_ranges: &[]
         });
@@ -239,7 +243,7 @@ impl ComputePipeline {
             entry_point: shader.entry_point,
         });
 
-        let result = ComputePipeline { 
+        let mut result = ComputePipeline { 
             state: state.get_state(), 
             pipeline, 
             shader, 
@@ -273,14 +277,14 @@ impl ComputePipeline {
     }
 
     /// Execute the shader
-    pub fn execute(&self) {
-        let bind_group = self.shader.bind_group.unwrap();
+    pub fn execute(&mut self) {
+        let bind_group = self.shader.get_bind_group().unwrap();
         let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
         });
 
         {
-            let compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { 
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor { 
                 label: None
             });
 

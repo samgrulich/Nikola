@@ -1,4 +1,4 @@
-use std::{rc::Rc, ops::{Deref, DerefMut}};
+use std::{rc::Rc, ops::Deref};
 
 use crate::FORMAT;
 
@@ -56,6 +56,7 @@ impl Dimension {
     }
 }
 
+#[derive(Copy, Clone)]
 /// Describe what shader stage is able to access this data
 pub enum Visibility {
     VERTEX,
@@ -92,34 +93,11 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
 }
 
 
-
-pub struct TextureData {
-    texture: wgpu::Texture,
-}
-
-impl Deref for TextureData {
-    type Target = wgpu::Texture;
-
-    fn deref(&self) -> &Self::Target {
-        &self.texture
-    }
-}
-
-impl DerefMut for TextureData {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.texture
-    }
-}
-
-impl TextureData {
-    pub fn new(texture: wgpu::Texture) -> Self {
-        TextureData { texture }
-    }
-}
-
 /// Contains texture and additional data
 pub struct Texture {
-    texture: Rc<TextureData>,
+    texture: Rc<wgpu::Texture>,
+    view: wgpu::TextureView,
+
     access: Access,
     dimension: Dimension,
     is_storage: bool,
@@ -127,9 +105,12 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(texture: wgpu::Texture, access: Access, is_storage: bool) -> Self {
-        let texture = Rc::new(TextureData::new(texture));
+        let texture = Rc::new(texture);
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
         Texture { 
             texture, 
+            view,
             access, 
             dimension: Dimension::D2, 
             is_storage,
@@ -138,7 +119,9 @@ impl Texture {
 
     /// Swap texture
     pub unsafe fn swap_texture(&mut self, mut new_texture: wgpu::Texture) {
-        let texture_ptr: *mut wgpu::Texture = &mut **self.texture;
+        let texture_ptr: *const wgpu::Texture = &*self.texture;
+        let texture_ptr = texture_ptr.cast_mut();
+        
         let new_texture_ptr: *mut wgpu::Texture = &mut new_texture;
         
         // swap the textures
@@ -151,9 +134,11 @@ impl Texture {
     /// Get separate view of this texture data, and you can specify texture access data 
     pub fn get_view(&self, data: Option<(Access, Dimension, bool)>) -> Texture {
         let data = data.unwrap_or((self.access, self.dimension, self.is_storage));
+        let view = self.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Texture { 
             texture: self.texture.clone(), 
+            view,
             access: data.0, 
             dimension: data.1,
             is_storage: data.2,
@@ -181,37 +166,20 @@ impl Resource for Texture {
     }
     
     fn get_resource(&self) -> wgpu::BindingResource {
-        let view = self.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        wgpu::BindingResource::TextureView(&view) // possible early free of memory
+        wgpu::BindingResource::TextureView(&self.view) 
     }
 }
 
 
 
 /// Trait that signifies the data is referencing buffer
-pub trait BufferData {
-    fn get_binding(&self) -> wgpu::BufferBinding;
-}
-
-impl BufferData for wgpu::Buffer {
-    fn get_binding(&self) -> wgpu::BufferBinding {
-        self.as_entire_buffer_binding()
-    }
-}
-
-impl<'a> BufferData for wgpu::BufferBinding<'a> {
-    fn get_binding(&self) -> wgpu::BufferBinding {
-        self.clone()
-    }
-}
-
 pub struct Buffer {
-    buffer: Box<dyn BufferData>,
+    buffer: Rc<wgpu::Buffer>,
     access: Access,
 }
 
 impl Deref for Buffer {
-    type Target = Box<dyn BufferData>;
+    type Target = Rc<wgpu::Buffer>;
 
     fn deref(&self) -> &Self::Target {
         &self.buffer
@@ -220,14 +188,14 @@ impl Deref for Buffer {
 
 impl Buffer {
     pub fn new(buffer: wgpu::Buffer, access: Access) -> Self {
-        let buffer = Box::new(buffer);
+        let buffer = Rc::new(buffer);
 
         Buffer { buffer, access }
     }
 
     /// Get buffer binding of this buffer data and specify additional access data
     pub fn get_binding(&self, data: Option<(Access,)>) -> Buffer {
-        let binding = Box::new(self.buffer.get_binding()); 
+        let binding = self.buffer.clone(); 
         let data = data.unwrap_or((self.access, ));
 
         Buffer { buffer: binding, access: data.0 }
@@ -246,7 +214,7 @@ impl Resource for Buffer {
     }
 
     fn get_resource(&self) -> wgpu::BindingResource {
-        wgpu::BindingResource::Buffer(self.buffer.get_binding())
+        wgpu::BindingResource::Buffer(self.buffer.as_entire_buffer_binding())
     }
 }
 
