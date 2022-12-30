@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::{rc::Rc, borrow::Cow, fs};
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
@@ -13,7 +12,7 @@ pub type Entries = Vec<Box<dyn Resource>>;
 /// Group all shader metadata with the module
 ///     use new method to create new
 pub struct Shader {
-    pub module: wgpu::ShaderModule,
+    module: wgpu::ShaderModule,
     pub entry_point: &'static str,
     pub path: &'static str,
     pub visibility: Visibility,
@@ -187,5 +186,9 @@ impl Shader {
         }
         
         self.layout.as_ref()
+    }
+
+    pub fn get_module(&self) -> &wgpu::ShaderModule {
+        &self.module
     }
 }

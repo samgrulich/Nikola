@@ -7,9 +7,11 @@ use crate::backend::state::*;
 use crate::backend::binding;
 use crate::backend::Size;
 
+use super::FORMAT;
+
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Vertex {
     position: [f32; 3],
     uv: [f32; 2],
@@ -94,12 +96,12 @@ impl RenderPipeline {
            // setup exceptional inputs
         let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
-            contents: bytemuck::cast_slice(RECT.vertices.as_slice()),
+            contents: bytemuck::cast_slice(&RECT.vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index buffer"),
-            contents: bytemuck::cast_slice(RECT.indices.as_slice()),
+            contents: bytemuck::cast_slice(&RECT.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
        
@@ -108,8 +110,6 @@ impl RenderPipeline {
 
         // bind the generic inputs
         fragment.add_entry(Box::new(texture.get_view(None)));
-
-        dbg!(fragment.get_binding());
 
         // setup the pipeline 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
@@ -123,7 +123,7 @@ impl RenderPipeline {
             label: None, 
             layout: Some(&layout), 
             vertex: wgpu::VertexState { 
-                module: &vertex.module, 
+                module: vertex.get_module(), 
                 entry_point: vertex.entry_point, 
                 buffers: &[Vertex::desc()] // vertex description
             }, 
@@ -140,11 +140,11 @@ impl RenderPipeline {
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(
                 wgpu::FragmentState { 
-                    module: &fragment.module, 
+                    module: fragment.get_module(), 
                     entry_point: fragment.entry_point, 
                     targets: &[Some(
                         wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8Unorm, // todo FORMAT?
+                            format: FORMAT, // todo FORMAT?
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }
@@ -166,7 +166,7 @@ impl RenderPipeline {
                     view, 
                     resolve_target: None, 
                     ops: wgpu::Operations { 
-                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: true, 
                     } 
                 }),
@@ -242,7 +242,7 @@ impl ComputePipeline {
         let pipeline = state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: Some(&layout),
-            module: &shader.module,
+            module: shader.get_module(),
             entry_point: shader.entry_point,
         });
 

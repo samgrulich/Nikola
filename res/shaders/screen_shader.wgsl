@@ -27,9 +27,9 @@ fn vert_main(
 fn frag_main(
     in: VertOut
 ) -> @location(0) vec4<f32> {
-    //let diffuse = textureSample(t_diffuse, s_diffuse, in.uv);
-    //let color = diffuse;
-    let color = vec4(1f);
+    let diffuse = textureSample(t_diffuse, s_diffuse, in.uv);
+    let color = diffuse;
+    let color = vec4<f32>(1f, 1f, 0f, 1f);
 
     return color;
 }
