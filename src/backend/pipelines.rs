@@ -47,7 +47,7 @@ impl Vertex {
 
 pub struct Rect {
     vertices: [Vertex; 4],
-    indices: [i32; 6]
+    indices: [u16; 6]
 }
 
 const RECT: Rect = Rect {
