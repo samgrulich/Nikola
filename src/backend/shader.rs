@@ -1,4 +1,4 @@
-use std::{rc::Rc, borrow::Cow, fs};
+use std::{rc::Rc, fs};
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
 
@@ -12,7 +12,7 @@ pub type Entries = Vec<Box<dyn Resource>>;
 /// Group all shader metadata with the module
 ///     use new method to create new
 pub struct Shader {
-    module: wgpu::ShaderModule,
+    module: Rc<wgpu::ShaderModule>,
     pub entry_point: &'static str,
     pub path: &'static str,
     pub visibility: Visibility,
@@ -22,7 +22,7 @@ pub struct Shader {
     bind_group: Option<wgpu::BindGroup>,
     layout: Option<wgpu::BindGroupLayout>,
     
-    state: Rc<StateData>,
+    state: Rc<Box<StateData>>,
 }
 
 impl Shader {
@@ -32,29 +32,42 @@ impl Shader {
         path: &'static str, 
         entry: &'static str, 
         visibility: Visibility, 
-        entries: Entries,
     ) -> Self {
         let binding = fs::read_to_string(path).unwrap();
         let source = binding.as_str();
         let state = state.get_state();
-        let module = state.device.create_shader_module(wgpu::ShaderModuleDescriptor { 
+        let module = Rc::new(state.device.create_shader_module(wgpu::ShaderModuleDescriptor { 
             label: None, 
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(source)),
-        });
+            source: wgpu::ShaderSource::Wgsl(source.into()),
+        }));
 
-        let mut this = Shader {
+        Shader {
             module,
             entry_point: entry,
             path,
             visibility,
-            entries,
+            entries: vec![],
             state,
             bind_group: None,
             layout: None,
-        };
+        }
+    }
 
-        this.refresh_binding();
-        this
+    pub fn new_from(
+        &self, 
+        entry: &'static str, 
+        visibility: Visibility, 
+    ) -> Self {
+        Shader {
+            module: self.module.clone(),
+            entry_point: entry,
+            path: self.path,
+            visibility,
+            entries: vec![],
+            state: self.state.clone(),
+            bind_group: None,
+            layout: None
+        }
     }
 
     pub fn add_entry(&mut self, entry: Box<dyn Resource>) {
@@ -165,6 +178,10 @@ impl Shader {
 
     pub fn get_binding(&mut self) 
         -> (Option<&wgpu::BindGroup>, Option<&wgpu::BindGroupLayout>) {
+        if self.entries.len() == 0 {
+            return (None, None);
+        }
+        
         if let None = self.bind_group {
             self.refresh_binding();
         }
@@ -173,6 +190,10 @@ impl Shader {
     }
 
     pub fn get_bind_group(&mut self) -> Option<&wgpu::BindGroup> {
+        if self.entries.len() == 0 {
+            return None;
+        }
+
         if let None = self.bind_group {
             self.refresh_binding();
         }
@@ -181,6 +202,10 @@ impl Shader {
     }
     
     pub fn get_layout(&mut self) -> Option<&wgpu::BindGroupLayout> {
+        if self.entries.len() == 0 {
+            return None;
+        }
+
         if let None = self.layout { 
             self.refresh_binding();
         }

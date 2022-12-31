@@ -11,14 +11,11 @@ use super::FORMAT;
 
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     position: [f32; 3],
     uv: [f32; 2],
 }
-
-unsafe impl bytemuck::Zeroable for Vertex { }
-unsafe impl bytemuck::Pod for Vertex { }
 
 impl Vertex {
     pub fn new(data: [f32; 5]) -> Self {
@@ -34,14 +31,14 @@ impl Vertex {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
                     shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
                 }
             ],
         }
@@ -55,10 +52,10 @@ pub struct Rect {
 
 const RECT: Rect = Rect {
     vertices: [
-        Vertex { position: [ 1.,  1., 0.], uv: [1., 1.]},
-        Vertex { position: [-1., -1., 0.], uv: [0., 0.]},
-        Vertex { position: [ 1., -1., 0.], uv: [1., 0.]},
-        Vertex { position: [-1.,  1., 0.], uv: [0., 1.]},
+        Vertex { position: [ 0.5,  0.5, 0.], uv: [1., 1.]},
+        Vertex { position: [-0.5, -0.5, 0.], uv: [0., 0.]},
+        Vertex { position: [ 0.5, -0.5, 0.], uv: [1., 0.]},
+        Vertex { position: [-0.5,  0.5, 0.], uv: [0., 1.]},
     ],
     indices: [
         0, 1, 2,
@@ -75,7 +72,7 @@ pub struct RenderPipeline {
     index_buffer: wgpu::Buffer,
 
     pipeline: wgpu::RenderPipeline,
-    state: Rc<StateData>,
+    state: Rc<Box<StateData>>,
 }
 
 impl RenderPipeline {
@@ -86,12 +83,12 @@ impl RenderPipeline {
             state.size, 
             wgpu::TextureUsages::STORAGE_BINDING | 
             wgpu::TextureUsages::TEXTURE_BINDING, 
-            binding::Access::Read,
+            binding::Access::Both,
             false
         );
 
             // segup specific inputs
-        fragment.create_sampler();
+        // fragment.create_sampler();
 
            // setup exceptional inputs
         let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -104,18 +101,15 @@ impl RenderPipeline {
             contents: bytemuck::cast_slice(&RECT.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-       
-            // clone state ref
-        let state = state.get_state();
 
         // bind the generic inputs
-        fragment.add_entry(Box::new(texture.get_view(None)));
+        // fragment.add_entry(Box::new(texture.get_view(None)));
 
         // setup the pipeline 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
-                fragment.get_layout().unwrap(),
+                // fragment.get_layout().unwrap(),
             ], 
             push_constant_ranges: &[]
         });
@@ -128,7 +122,7 @@ impl RenderPipeline {
                 buffers: &[Vertex::desc()] // vertex description
             }, 
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::TriangleList, // todo
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -154,7 +148,7 @@ impl RenderPipeline {
             multiview: None,
         });
 
-        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state }
+        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state: state.get_state() }
     }
 
     /// Creates render pass with instructions to clear display in place
@@ -201,7 +195,7 @@ impl RenderPipeline {
             let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
 
             render_pass.set_pipeline(&self.pipeline);
-            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
+            // render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..6, 0, 0..2);
@@ -217,7 +211,7 @@ impl RenderPipeline {
 
 
 pub struct ComputePipeline {
-    state: Rc<StateData>,
+    state: Rc<Box<StateData>>,
     pipeline: wgpu::ComputePipeline,
 
     shader: Shader,
