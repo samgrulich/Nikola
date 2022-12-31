@@ -1,4 +1,5 @@
 use std::{rc::Rc, fs};
+use std::io::{Error, ErrorKind};
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
 
@@ -18,11 +19,12 @@ pub struct Shader {
     pub visibility: Visibility,
     
     entries: Entries,
+    entry_layout: Option<Vec<usize>>,
 
     bind_group: Option<wgpu::BindGroup>,
-    layout: Option<wgpu::BindGroupLayout>,
+    bind_layout: Option<wgpu::BindGroupLayout>,
     
-    state: Rc<Box<StateData>>,
+    state: Rc<StateData>,
 }
 
 impl Shader {
@@ -47,9 +49,10 @@ impl Shader {
             path,
             visibility,
             entries: vec![],
+            entry_layout: None,
             state,
             bind_group: None,
-            layout: None,
+            bind_layout: None,
         }
     }
 
@@ -64,9 +67,10 @@ impl Shader {
             path: self.path,
             visibility,
             entries: vec![],
+            entry_layout: None,
             state: self.state.clone(),
             bind_group: None,
-            layout: None
+            bind_layout: None
         }
     }
 
@@ -118,6 +122,26 @@ impl Shader {
         self.add_entry(Box::new(buffer));
     }
 
+    /// Create a shader specific empty unmapped buffer with 
+    /// STORAGE usage
+    pub fn create_storage_buffer(&mut self, size: u64, access: binding::Access) {
+        self.create_buffer(
+            wgpu::BufferUsages::STORAGE,
+            size, 
+            access
+        )
+    }
+
+    pub fn create_storage_buffer_init<T>(&mut self, contents: &[T], access: binding::Access)
+        where T: NoUninit 
+    {
+        self.create_buffer_init(
+            wgpu::BufferUsages::STORAGE, 
+            contents, 
+            access
+        )
+    }
+
     /// Create shader specific sampler (Linear filtering)
     pub fn create_sampler(&mut self) {
         let address_mode = wgpu::AddressMode::ClampToEdge;
@@ -138,6 +162,42 @@ impl Shader {
         self.add_entry(Box::new(sampler));
     }
 
+    /// Swap resources at two positions (positions are refferencing the index in constant 
+    /// entries array)
+    pub fn swap_resources(&mut self, first: usize, second: usize) -> Result<(), Error> {
+        let first_type  = self.entries[first].get_type();
+        let second_type = self.entries[second].get_type();
+
+        if !first_type.equals(second_type) {
+            return Err(Error::new(ErrorKind::Unsupported, "the two types aren't equal"));
+        }
+
+        if let Some(layout) = &mut self.entry_layout {
+            let first_idx = layout
+                .iter()
+                .position(|elem| *elem == first)
+                .unwrap();
+
+            let second_idx = layout
+                .iter()
+                .position(|elem| *elem == second)
+                .unwrap();
+
+            layout[first_idx] = second;
+            layout[second_idx] = first;
+            self.entry_layout = Some(layout.to_vec());
+        }
+        else {
+            let mut layout = (0..self.entries.len()).collect::<Vec<usize>>();
+            layout[first] = second;
+            layout[second] = first;
+            self.entry_layout = Some(layout);
+        }
+
+        Ok(())
+    }
+
+    /// refresh the bind group layout and bind group of this shader
     pub fn refresh_binding(&mut self) {
         let layouts = self.entries
             .iter()
@@ -153,18 +213,33 @@ impl Shader {
         });
 
 
-        let resources = self.entries
-            .iter()
-            .enumerate()
-            .map(|(index, entry)| {
-                let binding = index as u32;
-                
-                wgpu::BindGroupEntry { 
-                    binding, 
-                    resource: entry.get_resource(),
-                }
-            })
-            .collect::<Vec<wgpu::BindGroupEntry>>();
+        let entries = self.entries.iter();
+        let resources = if self.entry_layout.is_none() {
+                entries
+                .enumerate()
+                .map(|(index, entry)| {
+                    let binding = index as u32;
+                    
+                    wgpu::BindGroupEntry { 
+                        binding, 
+                        resource: entry.get_resource(),
+                    }
+                })
+                .collect::<Vec<wgpu::BindGroupEntry>>()
+            } else {
+                entries
+                .zip(self.entry_layout.as_ref().unwrap().iter())
+                .map(|(entry, index)| {
+                    let binding = *index as u32;
+
+                    wgpu::BindGroupEntry { 
+                        binding, 
+                        resource: entry.get_resource() 
+                    }
+
+                })
+                .collect::<Vec<wgpu::BindGroupEntry>>()
+            };
 
         let bind_group = self.state.device.create_bind_group(&wgpu::BindGroupDescriptor { 
             label: None, 
@@ -172,8 +247,8 @@ impl Shader {
             entries: resources.as_slice() 
         });
 
-        self.layout     = Some(layout);
-        self.bind_group = Some(bind_group);
+        self.bind_layout = Some(layout);
+        self.bind_group  = Some(bind_group);
     }
 
     pub fn get_binding(&mut self) 
@@ -186,7 +261,7 @@ impl Shader {
             self.refresh_binding();
         }
 
-        (self.bind_group.as_ref(), self.layout.as_ref())
+        (self.bind_group.as_ref(), self.bind_layout.as_ref())
     }
 
     pub fn get_bind_group(&mut self) -> Option<&wgpu::BindGroup> {
@@ -206,11 +281,11 @@ impl Shader {
             return None;
         }
 
-        if let None = self.layout { 
+        if let None = self.bind_layout { 
             self.refresh_binding();
         }
         
-        self.layout.as_ref()
+        self.bind_layout.as_ref()
     }
 
     pub fn get_module(&self) -> &wgpu::ShaderModule {

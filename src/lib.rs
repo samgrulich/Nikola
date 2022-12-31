@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use window::init_window;
 use winit::{event::Event, event::WindowEvent};
 
@@ -92,4 +93,83 @@ fn create_particle_list(count: u32) -> Vec<[f32; 4]> {
     }
 
     particles
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Particle {
+    position: [f32; 2],
+    velocity: [f32; 2],
+}
+
+impl Particle {
+    pub fn new(x: f32, y: f32) -> Self {
+        Particle { 
+            position: [x, y], 
+            velocity: [0f32, 0f32]
+        }
+    }
+}
+
+pub struct Fluid {
+    computer: ComputePipeline,
+    state: Rc<StateData>,
+
+    particles_in: Buffer,
+    particles_out: Buffer,
+    swapped: bool,
+}
+
+impl Fluid {
+    fn create_particles(size: Size<u32>) -> Vec<Particle> {
+        let mut particles = vec![];
+
+        for y in 0..size.height {
+            for x in 0..size.width {
+                let particle = Particle::new(x as f32, y as f32);
+                particles.push(particle)
+            }
+        }
+
+        particles
+    }
+
+    pub fn new(state: &State, mut shader: Shader, size: Size<u32>) -> Self {
+        let particles = Self::create_particles(size);
+
+        let particles_in = state.create_buffer_init(
+            particles.as_slice(), 
+            wgpu::BufferUsages::STORAGE, 
+            Access::Read
+        );
+        let particles_out = state.create_buffer(
+            std::mem::size_of_val(&particles) as u64, 
+            wgpu::BufferUsages::STORAGE, 
+            Access::Write
+        );
+
+        shader.add_entry(Box::new(particles_in.get_binding(None)));
+        shader.add_entry(Box::new(particles_out.get_binding(None)));
+
+        let computer = ComputePipeline::new(state, shader, size, None);
+        let state = state.get_state();
+        let swapped = false;
+        Fluid { computer, state, particles_in, particles_out, swapped }
+    }
+
+    /// Update the state of fluid (run the shader)
+    pub fn update(&mut self) {
+        self.computer.execute();
+        self.computer.swap_resources(0, 1); // todo: cache swap resources
+        self.swapped = !self.swapped;
+    }
+
+    /// Get output binding
+    pub fn get_output(&self) -> &Buffer {
+        if self.swapped {
+            &self.particles_in
+        } else {
+            &self.particles_out
+        }
+    }
 }

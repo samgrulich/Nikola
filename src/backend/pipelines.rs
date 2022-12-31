@@ -72,7 +72,7 @@ pub struct RenderPipeline {
     index_buffer: wgpu::Buffer,
 
     pipeline: wgpu::RenderPipeline,
-    state: Rc<Box<StateData>>,
+    state: Rc<StateData>,
 }
 
 impl RenderPipeline {
@@ -216,7 +216,7 @@ impl RenderPipeline {
 
 
 pub struct ComputePipeline {
-    state: Rc<Box<StateData>>,
+    state: Rc<StateData>,
     pipeline: wgpu::ComputePipeline,
 
     shader: Shader,
@@ -259,6 +259,27 @@ impl ComputePipeline {
         result
     }
 
+    /// Regenerate the binding layout and pipeline
+    fn refresh_binding(&mut self) {
+        self.shader.refresh_binding();
+
+        let layout = self.state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                self.shader.get_layout().unwrap()
+            ],
+            push_constant_ranges: &[]
+        });
+        let pipeline = self.state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor { 
+            label: None, 
+            layout: Some(&layout), 
+            module: self.shader.get_module(), 
+            entry_point: self.shader.entry_point 
+        });
+
+        self.pipeline = pipeline;
+    }
+
     /// Get the count of workgroups needed to be dispatched
     fn compute_workgroups(&mut self) {
         let workgroups = self.size.fit_other(self.workgroup_size);
@@ -266,16 +287,22 @@ impl ComputePipeline {
         self.workgroups = Some(workgroups);
     }
 
-
-    /// Future public function: not implemented fully, 
-    /// it's useless for now
-    fn resize(&mut self, size: Size<u32>) { 
+    /// Resize size of this pipeline, ! keep in mind if you are using this pipeline to 
+    /// render to texture you need to resize the texture first
+    pub fn resize(&mut self, size: Size<u32>) { 
        self.size = size; 
        self.compute_workgroups();
        self.shader.refresh_binding();
-       // todo: refresh the pipeline and layout
-
+       self.refresh_binding();
        // todo: implement TextureComputePipelines
+    }
+
+    /// Swap shader resources and refresh pipeline binding
+    pub fn swap_resources(&mut self, first: usize, second: usize) {
+        match self.shader.swap_resources(first, second) {
+            Ok(_) => { self.refresh_binding() },
+            Err(err) => eprintln!("{:?}", err),
+        }
     }
 
     /// Execute the shader

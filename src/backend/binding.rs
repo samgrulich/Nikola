@@ -1,4 +1,4 @@
-use std::{rc::Rc, ops::Deref};
+use std::{rc::Rc, ops::Deref, any::Any};
 
 use crate::backend::FORMAT;
 
@@ -75,12 +75,29 @@ impl Visibility {
     }
 }
 
+pub enum ResourceType {
+    Texture,
+    Buffer,
+    Sampler,
+    Other
+}
+
+impl ResourceType {
+    /// Check if two types are equal
+    pub fn equals(&self, other: Self) -> bool {
+        self.type_id() == other.type_id()
+    }
+}
+
 pub trait Resource {
     /// get bind group layout entry of this resource
     fn get_layout(&self, binding: u32, visibility: Visibility) -> wgpu::BindGroupLayoutEntry;
 
     /// get binding resource of this resource
     fn get_resource(&self) -> wgpu::BindingResource;
+
+    /// return type of the data contained
+    fn get_type(&self) -> ResourceType;
 }
 
 fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType) -> wgpu::BindGroupLayoutEntry {
@@ -169,6 +186,10 @@ impl Resource for Texture {
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::TextureView(&self.view) 
     }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Texture
+    }
 }
 
 
@@ -218,6 +239,10 @@ impl Resource for Buffer {
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Buffer(self.buffer.as_entire_buffer_binding())
     }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Buffer
+    }
 }
 
 
@@ -249,6 +274,10 @@ impl Resource for Sampler {
 
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Sampler(&self.sampler)
+    }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Sampler
     }
 }
 

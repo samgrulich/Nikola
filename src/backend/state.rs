@@ -15,7 +15,7 @@ pub struct StateData {
 }
 
 pub struct State {
-    pub state: Rc<Box<StateData>>,
+    pub state: Rc<StateData>,
 }
 
 
@@ -105,7 +105,7 @@ impl Deref for State {
 impl State {
     pub async fn new(window: &winit::window::Window) -> Self {
         let state = StateData::new(window).await;
-        let state = Rc::new(Box::new(state));
+        let state = Rc::new(state);
         
         State {
             state
@@ -132,7 +132,7 @@ impl State {
         )
     }
 
-    pub fn get_state(&self) -> Rc<Box<StateData>> {
+    pub fn get_state(&self) -> Rc<StateData> {
         self.state.clone()
     }
 

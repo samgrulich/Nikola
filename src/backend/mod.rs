@@ -14,8 +14,8 @@ const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 pub struct Size<T> 
 where T: num_traits::Unsigned
 {
-    width: T,
-    height: T
+    pub width: T,
+    pub height: T
 }
 
 impl<T> Size<T>
