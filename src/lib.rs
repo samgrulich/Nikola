@@ -9,9 +9,23 @@ pub async fn run() {
     
     let state = State::new(&window).await;
 
+    // shader setup
     let vertex = Shader::new(&state, "./res/shaders/screen_shader.wgsl", "vert_main", Visibility::VERTEX);
     let fragment = vertex.new_from("frag_main", binding::Visibility::FRAGMENT);
+
+    // renderer setup 
     let mut render_pipeline = RenderPipeline::new(&state, vertex, fragment);
+
+    // compute setup
+    let mut shader = Shader::new(&state, "./res/shaders/render_shader.wgsl", "main", Visibility::COMPUTE);
+
+    let particles = create_particle_list(4);
+    let compute_texture = render_pipeline.get_texture(binding::Access::Write, true);
+
+    shader.add_entry(Box::new(compute_texture));
+    shader.create_buffer_init(wgpu::BufferUsages::STORAGE, particles.as_slice(), binding::Access::Read);
+
+    let mut compute = ComputePipeline::new(&state, shader, Size::from_physical(window.inner_size()), Some(Size::new(1, 1)));
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -27,6 +41,7 @@ pub async fn run() {
             },
             Event::MainEventsCleared => {
                 // update app
+                compute.execute();
 
                 window.request_redraw();
             },
@@ -62,3 +77,19 @@ pub mod window {
     }
 }
 
+fn create_particle_list(count: u32) -> Vec<[f32; 4]> {
+    let mut particles = vec![];
+
+    for y in 0..count {
+        for x in 0..count {
+            particles.push([
+               x as f32, 
+               y as f32,
+               0f32,
+               0f32,
+            ]);
+        }
+    }
+
+    particles
+}

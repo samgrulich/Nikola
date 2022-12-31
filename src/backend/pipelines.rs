@@ -52,10 +52,10 @@ pub struct Rect {
 
 const RECT: Rect = Rect {
     vertices: [
-        Vertex { position: [ 0.5,  0.5, 0.], uv: [1., 1.]},
-        Vertex { position: [-0.5, -0.5, 0.], uv: [0., 0.]},
-        Vertex { position: [ 0.5, -0.5, 0.], uv: [1., 0.]},
-        Vertex { position: [-0.5,  0.5, 0.], uv: [0., 1.]},
+        Vertex { position: [ 1.,  1., 0.], uv: [1., 1.]},
+        Vertex { position: [-1., -1., 0.], uv: [0., 0.]},
+        Vertex { position: [ 1., -1., 0.], uv: [1., 0.]},
+        Vertex { position: [-1.,  1., 0.], uv: [0., 1.]},
     ],
     indices: [
         0, 1, 2,
@@ -88,7 +88,7 @@ impl RenderPipeline {
         );
 
             // segup specific inputs
-        // fragment.create_sampler();
+        fragment.create_sampler();
 
            // setup exceptional inputs
         let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -103,13 +103,13 @@ impl RenderPipeline {
         });
 
         // bind the generic inputs
-        // fragment.add_entry(Box::new(texture.get_view(None)));
+        fragment.add_entry(Box::new(texture.get_view(None)));
 
         // setup the pipeline 
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
-                // fragment.get_layout().unwrap(),
+                fragment.get_layout().unwrap(),
             ], 
             push_constant_ranges: &[]
         });
@@ -149,6 +149,11 @@ impl RenderPipeline {
         });
 
         RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state: state.get_state() }
+    }
+
+    /// Get a handle to the render texture
+    pub fn get_texture(&self, access: binding::Access, is_storage: bool) -> binding::Texture {
+        self.texture.get_view(Some((access, binding::Dimension::D2, is_storage)))
     }
 
     /// Creates render pass with instructions to clear display in place
@@ -195,7 +200,7 @@ impl RenderPipeline {
             let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
 
             render_pass.set_pipeline(&self.pipeline);
-            // render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
+            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..6, 0, 0..2);
