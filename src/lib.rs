@@ -19,14 +19,18 @@ pub async fn run() {
 
     // compute setup
     let mut shader = Shader::new(&state, "./res/shaders/render_shader.wgsl", "main", Visibility::COMPUTE);
-
-    let particles = create_particle_list(4);
     let compute_texture = render_pipeline.get_texture(binding::Access::Write, true);
 
     shader.add_entry(Box::new(compute_texture));
-    shader.create_buffer_init(wgpu::BufferUsages::STORAGE, particles.as_slice(), binding::Access::Read);
 
+    // fluid setup
+    let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
+    let mut water = Fluid::new(&state, fluid_shader, Size::new(4, 4));
+
+    shader.add_entry(Box::new(water.particles_in.get_binding(None)));
+    
     let mut compute = ComputePipeline::new(&state, shader, Size::from_physical(window.inner_size()), Some(Size::new(1, 1)));
+
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -43,6 +47,7 @@ pub async fn run() {
             Event::MainEventsCleared => {
                 // update app
                 compute.execute();
+                water.update();
 
                 window.request_redraw();
             },
@@ -78,23 +83,6 @@ pub mod window {
     }
 }
 
-fn create_particle_list(count: u32) -> Vec<[f32; 4]> {
-    let mut particles = vec![];
-
-    for y in 0..count {
-        for x in 0..count {
-            particles.push([
-               x as f32, 
-               y as f32,
-               0f32,
-               0f32,
-            ]);
-        }
-    }
-
-    particles
-}
-
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Particle {
@@ -117,6 +105,7 @@ pub struct Fluid {
 
     particles_in: Buffer,
     particles_out: Buffer,
+    particles_size: wgpu::BufferAddress,
     swapped: bool,
 }
 
@@ -126,7 +115,10 @@ impl Fluid {
 
         for y in 0..size.height {
             for x in 0..size.width {
-                let particle = Particle::new(x as f32, y as f32);
+                let particle = Particle::new(
+                    (x) as f32, 
+                    (y + 1) as f32
+                );
                 particles.push(particle)
             }
         }
@@ -136,15 +128,16 @@ impl Fluid {
 
     pub fn new(state: &State, mut shader: Shader, size: Size<u32>) -> Self {
         let particles = Self::create_particles(size);
+        let particles_size = std::mem::size_of_val(particles.as_slice()) as u64;
 
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 
-            wgpu::BufferUsages::STORAGE, 
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, 
             Access::Read
         );
         let particles_out = state.create_buffer(
-            std::mem::size_of_val(&particles) as u64, 
-            wgpu::BufferUsages::STORAGE, 
+            particles_size, 
+            wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             Access::Write
         );
 
@@ -154,14 +147,18 @@ impl Fluid {
         let computer = ComputePipeline::new(state, shader, size, None);
         let state = state.get_state();
         let swapped = false;
-        Fluid { computer, state, particles_in, particles_out, swapped }
+        Fluid { computer, state, particles_in, particles_out, swapped, particles_size }
     }
 
     /// Update the state of fluid (run the shader)
     pub fn update(&mut self) {
-        self.computer.execute();
-        self.computer.swap_resources(0, 1); // todo: cache swap resources
-        self.swapped = !self.swapped;
+        let mut encoder = self.computer.start_execute();
+        encoder.copy_buffer_to_buffer(&self.particles_out, 0, &self.particles_in, 0, self.particles_size);
+
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+
+        // self.computer.swap_resources(0, 1); // todo: cache swap resources
+        // self.swapped = !self.swapped;
     }
 
     /// Get output binding

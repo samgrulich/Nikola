@@ -307,6 +307,12 @@ impl ComputePipeline {
 
     /// Execute the shader
     pub fn execute(&mut self) {
+        let encoder = self.start_execute();
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+    }
+
+    /// Start execution
+    pub fn start_execute(&mut self) -> wgpu::CommandEncoder {
         let bind_group = self.shader.get_bind_group().unwrap();
         let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
@@ -326,6 +332,6 @@ impl ComputePipeline {
             compute_pass.dispatch_workgroups(workgroups.width, workgroups.height, 1);
         }
 
-        self.state.queue.submit(std::iter::once(encoder.finish()));
+        encoder
     }
 }

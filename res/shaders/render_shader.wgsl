@@ -18,7 +18,7 @@ fn main(
     }
 
     let color = vec3(
-        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 15),
+        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 3),
         0f
     );
 

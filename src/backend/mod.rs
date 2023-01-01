@@ -9,7 +9,7 @@ pub use state::*;
 
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm; 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 /// Specify 2D size (width, height)
 pub struct Size<T> 
 where T: num_traits::Unsigned
