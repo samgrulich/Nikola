@@ -87,6 +87,7 @@ pub mod window {
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Particle {
     position: [f32; 2],
+    density: f32,
     velocity: [f32; 2],
 }
 
@@ -94,6 +95,7 @@ impl Particle {
     pub fn new(x: f32, y: f32) -> Self {
         Particle { 
             position: [x, y], 
+            density: 1f32,
             velocity: [0f32, 0f32]
         }
     }
