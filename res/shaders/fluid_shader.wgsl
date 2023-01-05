@@ -53,7 +53,7 @@ fn poly6_kernel(r: f32) -> f32 {
 }
 
 fn div_poly6_kernel(r: f32) -> f32 {
-    return (-1/ pow(h, 2)) * pow((pow(r, 2) - pow(h, 2), 2) * r;
+	    return (-945/(64*PI*pow(h, 9)) * pow((pow(h, 2) - pow(r, 2), 2) * r;
 }
 
 fn spiky_kernel(r: f32) -> f32 {
