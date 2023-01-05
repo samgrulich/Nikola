@@ -1,3 +1,5 @@
+#define PI 3.1415926535
+
 struct Particle {
     @location(0) position: vec2<f32>,
     @location(1) mass: f32,
@@ -9,19 +11,22 @@ struct Particle {
 @group(0) @binding(2) var<storage> time_step: f32;
 
 let h = 10;
-let pi = 3.14159265;
 
-fn calc_density(mj: f32, r: vec2<f32>, rj: vec2<f32>) -> f32 {
-    return mj * smooth(r, rj, h);
+fn calc_density(mj: f32, smoothed: f32) -> f32 {
+    return mj * smoothed;
 }
 
-fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, smoothed: f32) -> f32 {
-    return -mj * (pi + pj) / (2 * roj) * smoothed;
+fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
+    return k * (ro - rest_ro);
+}
+
+fn calc_pressure(mj: f32, PI: f32, pj: f32, roj: f32, smoothed: f32, direction: vec2<f32>) -> vec2<f32> {
+    return -mj * (PI + pj) / (2 * roj) * smoothed * direction;
 }
 
 // don't forget to multiply by mu
-fn calc_viscosity( mj: f32, vi: f32, vj: f32, roj: f32, laplacian_smoothed: f32) -> f32 {
-    return (vj - vi) / roj * laplacian_smoothed;
+fn calc_viscosity( mj: f32, vi: f32, vj: f32, roj: f32, laplacian_smoothed: f32, direction: vec2<f32>) -> vec2<f32> {
+    return (vj - vi) / roj * laplacian_smoothed * direction;
 }
 
 fn calc_color_field(mj: f32, roj: f32, smoothed: f32) {
@@ -32,55 +37,39 @@ fn calc_tension(color_field: f32) {
 
 }
 
-fn calc_laplacian() {
-    // todo: load already calculated smooth kernel funcs
-}
 
-fn div_smooth_poly(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+fn smooth(ri: vec2<f32>, rj: vec2<f32>, f32 (&kernel)(f32)) {
     let r = distance(ri, rj);
 
     if (h < r || r < 0) {
         return 0;
     }
 
+    return kernel(r);
 }
 
-fn smooth_poly(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-    let r = distance(ri, rj);
-
-    if (h < r || r < 0) {
-        return 0;
-    }
-
-    return 315 / (64 * pi * pow(h, 9)) * pow(pow(h, 2) - pow(r, 2), 3);
+fn poly6_kernel(r: f32) -> f32 {
+    return 315 / (64 * PI * pow(h, 9)) * pow(pow(h, 2) - pow(r, 2), 3);
 }
 
-fn div_smooth_spiky(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-
+fn div_poly6_kernel(r: f32) -> f32 {
+    return (-1/ pow(h, 2)) * pow((pow(r, 2) - pow(h, 2), 2) * r;
 }
 
-fn smooth_spiky(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-    let r = distance(ri, rj);
-
-    if (h < r || r < 0) {
-        return 0;
-    }
-
-    return 15 / (pi * pow(h, 6)) * pow(h - r, 3);
+fn spiky_kernel(r: f32) -> f32 {
+    return 15 / (PI * pow(h, 6)) * pow(h - r, 3);
 }
 
-fn div_smooth_viscosity(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-
+fn div_spiky_kernel(r: f32) -> f32 {
+    return (15 / (PI * pow(h, 6)) * pow((h - r), 2) * r;
 }
 
-fn smooth_viscosity(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-    let r = distance(ri, rj);
+fn viscosity_kernel(r: f32) -> f32 {
+    return 15 / (2 * PI * pow(h, 3)) * ( - pow(r, 3) / (2 * pow(h, 3)) + pow(r, 2) / pow(h, 2) + h / (2 * r) - 1);
+}
 
-    if (h < r || r < 0) {
-        return 0;
-    }
-
-    return 15 / (2 * pi * pow(h, 3)) - pow(r, 3) / (2 * pow(h, 3)) + pow(r, 2) / pow(h, 2) + h / (2 * r) - 1;
+fn lap_viscosity_kernel(r: f32) -> f32 {
+    return 45 / (PI * pow(h, 6)) * (h - r);
 }
 
 
