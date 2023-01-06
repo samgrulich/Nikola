@@ -11,34 +11,66 @@ struct Particle {
 @group(0) @binding(2) var<storage> time_step: f32;
 
 let h = 10;
+let surface_treshold = 1;
+let tension_coeficien = 0;
 
-fn calc_density(mj: f32, smoothed: f32) -> f32 {
-    return mj * smoothed;
+// get average direction of neighbor particle
+fn get_average(particle: vec2<f32>, others: array<vec2<f32>>) -> vec2<f32> {
+    var sum: vec2<f32> = vec2(0f);
+
+    for (var i: i32 = 0; i < arrayLength(others); i++ ) {
+        let other = others[i];
+        let dist = other - particle;
+
+        if (length(dist) <= h) {
+            sum += dist;
+        }
+    }
+
+    return normalize(sum);
+}
+
+fn calc_density(mj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    return mj * smooth(ri, rj, poly6_kernel);
 }
 
 fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
     return k * (ro - rest_ro);
 }
 
-fn calc_pressure(mj: f32, PI: f32, pj: f32, roj: f32, smoothed: f32, direction: vec2<f32>) -> vec2<f32> {
-    return -mj * (PI + pj) / (2 * roj) * smoothed * direction;
+fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    return -mj * (pi + pj) / (2 * roj) * smooth(ri, rj, grad_spiky_kernel);
 }
 
 // don't forget to multiply by mu
-fn calc_viscosity( mj: f32, vi: f32, vj: f32, roj: f32, laplacian_smoothed: f32, direction: vec2<f32>) -> vec2<f32> {
-    return (vj - vi) / roj * laplacian_smoothed * direction;
+fn calc_viscosity( mj: f32, vi: f32, vj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    return (vj - vi) / roj * smooth(ri, rj, lap_viscosity_kernel);
 }
 
-fn calc_color_field(mj: f32, roj: f32, smoothed: f32) {
+fn calc_color_field(mj: f32, roj: f32, smoothed: f32) -> f32 {
     return mj * 1 / roj * smoothed;
 }
 
-fn calc_tension(color_field: f32) {
+fn grad_color_field(mj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    return calc_color_field(mj, roj, smooth(ri, rj, grad_poly6_kernel);
+}
+
+fn lap_color_field(mj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    return calc_color_field(mj, roj, smooth(ri, rj, lap_poly6_kernel);
+}
+
+// todo: test, not sure about fully implemnted
+fn calc_tension(n: f32) -> f32 {
+    if (abs(n) < h) {
+        return 0;
+    }
+
+
 
 }
 
 
-fn smooth(ri: vec2<f32>, rj: vec2<f32>, f32 (&kernel)(f32)) {
+fn smooth(ri: vec2<f32>, rj: vec2<f32>, f32 (&kernel)(f32)) -> f32 {
     let r = distance(ri, rj);
 
     if (h < r || r < 0) {
@@ -52,15 +84,19 @@ fn poly6_kernel(r: f32) -> f32 {
     return 315 / (64 * PI * pow(h, 9)) * pow(pow(h, 2) - pow(r, 2), 3);
 }
 
-fn div_poly6_kernel(r: f32) -> f32 {
-	    return (-945/(64*PI*pow(h, 9)) * pow((pow(h, 2) - pow(r, 2), 2) * r;
+fn grad_poly6_kernel(r: f32) -> f32 {
+    return (-945/(64*PI*pow(h, 9)) * pow((pow(h, 2) - pow(r, 2), 2) * r;
+}
+
+fn lap_poly6_kernel(r: f32) -> f32 {
+    return (945 / (32 * PI * pow(h, 9))) * (pow(h, 2) - pow(r, 2)) * (3 * pow(r, 2) - pow(h, 2));
 }
 
 fn spiky_kernel(r: f32) -> f32 {
     return 15 / (PI * pow(h, 6)) * pow(h - r, 3);
 }
 
-fn div_spiky_kernel(r: f32) -> f32 {
+fn grad_spiky_kernel(r: f32) -> f32 {
     return (15 / (PI * pow(h, 6)) * pow((h - r), 2) * r;
 }
 
