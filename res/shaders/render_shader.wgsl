@@ -1,6 +1,8 @@
 struct Particle {
-    @location(0) pos: vec2<f32>,
-    @location(1) vel: vec2<f32>,
+    @location(0) position: vec2<f32>,
+    @location(1) velocity: vec2<f32>,
+    @location(2) mass: f32,
+    @location(3) density: f32,
 }
 
 @group(0) @binding(0) var out_texture: texture_storage_2d<rgba8unorm, write>;
@@ -22,12 +24,12 @@ fn main(
         0f
     );
 
-    let pos = vec2<f32>(color.xy);
+    let position = vec2<f32>(color.xy);
     let particles_len = i32(arrayLength(&particles));
-    var closest: f32 = distance(particles[0].pos, pos);
+    var closest: f32 = distance(particles[0].position, position);
 
     for (var i: i32 = 0; i < particles_len; i++ ) {
-        let dist = distance(particles[i].pos, pos);
+        let dist = distance(particles[i].position, position);
 
         if (dist < closest) {
             closest = dist;

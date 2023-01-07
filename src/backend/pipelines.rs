@@ -238,6 +238,7 @@ impl ComputePipeline {
             ],
             push_constant_ranges: &[]
         });
+
         let pipeline = state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: Some(&layout),

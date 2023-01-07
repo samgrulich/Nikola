@@ -5,15 +5,16 @@ struct Particle {
     @location(3) density: f32,
 }
 
-@group(0) @binding(0) var<storage, read_write> ins: array<Particle>;
+@group(0) @binding(0) var<storage, read_write> ins:  array<Particle>;
 @group(0) @binding(1) var<storage, read_write> outs: array<Particle>;
 @group(0) @binding(2) var<storage> time_step: f32;
 @group(0) @binding(3) var<storage> rest_density: f32;
 
-let H = 10;
+
+let H = 10f;
 let PI = 3.1415926535f;
-let gas_constant = 1;
-let surface_treshold = 1;
+let gas_constant = 1f;
+let surface_treshold = 1f;
 let tension_coeficient = 0.2f;
 let viscous_coeficient = 0.7f;
 
@@ -21,72 +22,74 @@ let viscous_coeficient = 0.7f;
 fn poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 315 / (64 * PI * pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 3);
+    return 315f / (64f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 3f);
 }
 
 fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return -945/(64*PI*pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 2) * r;
+    return -945f / (64f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 2f) * r;
 }
 
 fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 945 / (32 * PI * pow(H, 9)) * (pow(H, 2) - pow(r, 2)) * (3 * pow(r, 2) - pow(H, 2));
+    return 945f / (32f * PI * pow(H, 9f)) * (pow(H, 2f) - pow(r, 2f)) * (3f * pow(r, 2f) - pow(H, 2f));
 }
 
 fn spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 15 / (PI * pow(H, 6)) * pow(H - r, 3);
+    return 15f / (PI * pow(H, 6f)) * pow(H - r, 3f);
 }
 
 fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 15 / (PI * pow(H, 6)) * pow((H - r), 2) * r;
+    return 15f / (PI * pow(H, 6f)) * pow((H - r), 2f) * r;
 }
 
 fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 15 / (2 * PI * pow(H, 3)) * ( - pow(r, 3) / (2 * pow(H, 3)) + pow(r, 2) / pow(H, 2) + H / (2 * r) - 1);
+    return 15f / (2f * PI * pow(H, 3f)) * ( - pow(r, 3f) / (2f * pow(H, 3f)) + pow(r, 2f) / pow(H, 2f) + H / (2f * r) - 1f);
 }
 
 fn lap_viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0) {
-        return 0;
+    if (H < r || r < 0f) {
+        return 0f;
     }
 
-    return 45 / (PI * pow(H, 6)) * (H - r);
+    return 45f / (PI * pow(H, 6f)) * (H - r);
 }
+
+
 
 fn calc_density(mj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     return mj * poly6_kernel(ri, rj);
@@ -96,18 +99,18 @@ fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
     return k * (ro - rest_ro);
 }
 
-fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     let r = normalize(rj - ri);
-    return -mj * (pi + pj) / (2 * roj) * grad_spiky_kernel(ri, rj) * r;
+    return -mj * (pi + pj) / (2f * roj) * grad_spiky_kernel(ri, rj) * r;
 }
 
 // don't forget to multiply by mu
-fn calc_viscosity(mj: f32, vi: vec2<f32>, vj: vec2<f32>, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+fn calc_viscosity(mj: f32, vi: vec2<f32>, vj: vec2<f32>, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     return (vj - vi) / roj * lap_viscosity_kernel(ri, rj);
 }
 
 fn calc_color_field(mj: f32, roj: f32, smoothed: f32, r: vec2<f32>) -> vec2<f32> {
-    return mj * 1 / roj * smoothed * r;
+    return mj * (1f / roj) * smoothed * r;
 }
 
 fn grad_color_field(mj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
@@ -125,11 +128,13 @@ fn calc_tension(grad: vec2<f32>, lap: vec2<f32>) -> vec2<f32> {
     let lap = length(lap);
 
     if (abs(n) < H) {
-        return 0;
+        return vec2(0f);
     }
 
     let force = - tension_coeficient * lap * normalize(grad);
 }
+
+
 
 @compute @workgroup_size(8, 8)
 fn main(
@@ -138,12 +143,12 @@ fn main(
     let id = global_id.y * 4u + global_id.x;
     var particle = ins[id];
 
-    let pressure = calc_particle_pressure(k, particle.density, rest_density);
+    let pressure = calc_particle_pressure(gas_constant, particle.density, rest_density);
 
     // calculate density
-    var density = vec2(0f);
-    for (var j: i32 = 0; j < arrayLength(ins); j++) {
-        if (id == j) {
+    var density = 0f;
+    for (var j: i32 = 0; j < i32(arrayLength(&ins)); j++) {
+        if (id == u32(j)) {
             continue;
         }
 
@@ -163,16 +168,16 @@ fn main(
     var tension_grad = vec2(0f);
     var tension_lap = vec2(0f);
 
-    for (var j: i32 = 0; j < arrayLength(ins); j++) {
-        if (id == j) {
+    for (var j: i32 = 0; j < i32(arrayLength(&ins)); j++) {
+        if (id == u32(j)) {
             continue;
         }
 
         let neighbor = ins[j];
         
         // pressure calculation
-        let neighbor_pressure = calc_particle_pressure(k, neighbor.density, rest_density);
-        pressure_force += calc_pressure(neighbor.mass, pressure, neighbor_pressure, neighbor.pressure, particle.position, neighbor.position);
+        let neighbor_pressure = calc_particle_pressure(gas_constant, neighbor.density, rest_density);
+        pressure_force += calc_pressure(neighbor.mass, pressure, neighbor_pressure, neighbor.density, particle.position, neighbor.position);
     
         // viscosity calculation
         viscous_force += calc_viscosity(neighbor.mass, particle.velocity, neighbor.velocity, neighbor.density, particle.position, neighbor.position);
@@ -182,17 +187,17 @@ fn main(
         tension_lap  +=  lap_color_field(neighbor.mass, neighbor.density, particle.position, neighbor.position);
     }
 
-    let tension_force = calc_tension(gradient, laplacian);
+    let tension_force = calc_tension(tension_grad, tension_lap);
     let forces = pressure_force + viscous_coeficient * viscous_force + tension_force; 
 
     // calculate acceleration 
     let acceleration = forces / density;
 
     // calculate velocity
-    particle.velocity = particle.velocity + acceleration * time_step;
+    particle.velocity += acceleration * time_step;
 
     // calculate new position 
-    particle.position = particle.position + velocity;
+    particle.position += particle.velocity;
 
     // update particle velocity, position, density
     outs[id] = particle;
