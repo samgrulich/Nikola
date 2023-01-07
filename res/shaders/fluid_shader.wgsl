@@ -5,7 +5,7 @@ struct Particle {
     @location(3) density: f32,
 }
 
-@group(0) @binding(0) var<storage> ins: array<Particle>;
+@group(0) @binding(0) var<storage, read_write> ins: array<Particle>;
 @group(0) @binding(1) var<storage, read_write> outs: array<Particle>;
 @group(0) @binding(2) var<storage> time_step: f32;
 @group(0) @binding(3) var<storage> rest_density: f32;
@@ -18,46 +18,78 @@ let tension_coeficient = 0.2f;
 let viscous_coeficient = 0.7f;
 
 
-fn poly6_kernel(r: f32) -> f32 {
-    return 315 / (64 * PI * pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 3);
-}
-
-fn grad_poly6_kernel(r: f32) -> f32 {
-    return -945/(64*PI*pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 2) * r;
-}
-
-fn lap_poly6_kernel(r: f32) -> f32 {
-    return 945 / (32 * PI * pow(H, 9)) * (pow(H, 2) - pow(r, 2)) * (3 * pow(r, 2) - pow(H, 2));
-}
-
-fn spiky_kernel(r: f32) -> f32 {
-    return 15 / (PI * pow(H, 6)) * pow(H - r, 3);
-}
-
-fn grad_spiky_kernel(r: f32) -> f32 {
-    return 15 / (PI * pow(H, 6)) * pow((H - r), 2) * r;
-}
-
-fn viscosity_kernel(r: f32) -> f32 {
-    return 15 / (2 * PI * pow(H, 3)) * ( - pow(r, 3) / (2 * pow(H, 3)) + pow(r, 2) / pow(H, 2) + H / (2 * r) - 1);
-}
-
-fn lap_viscosity_kernel(r: f32) -> f32 {
-    return 45 / (PI * pow(H, 6)) * (H - r);
-}
-
-fn smooth(ri: vec2<f32>, rj: vec2<f32>, kernel: Fn) -> f32 {
+fn poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
     if (H < r || r < 0) {
         return 0;
     }
 
-    return kernel(r);
+    return 315 / (64 * PI * pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 3);
+}
+
+fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return -945/(64*PI*pow(H, 9)) * pow(pow(H, 2) - pow(r, 2), 2) * r;
+}
+
+fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return 945 / (32 * PI * pow(H, 9)) * (pow(H, 2) - pow(r, 2)) * (3 * pow(r, 2) - pow(H, 2));
+}
+
+fn spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return 15 / (PI * pow(H, 6)) * pow(H - r, 3);
+}
+
+fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return 15 / (PI * pow(H, 6)) * pow((H - r), 2) * r;
+}
+
+fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return 15 / (2 * PI * pow(H, 3)) * ( - pow(r, 3) / (2 * pow(H, 3)) + pow(r, 2) / pow(H, 2) + H / (2 * r) - 1);
+}
+
+fn lap_viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
+    let r = distance(ri, rj);
+
+    if (H < r || r < 0) {
+        return 0;
+    }
+
+    return 45 / (PI * pow(H, 6)) * (H - r);
 }
 
 fn calc_density(mj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-    return mj * smooth(ri, rj, poly6_kernel);
+    return mj * poly6_kernel(ri, rj);
 }
 
 fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
@@ -66,12 +98,12 @@ fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
 
 fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = normalize(rj - ri);
-    return -mj * (pi + pj) / (2 * roj) * smooth(ri, rj, grad_spiky_kernel) * r;
+    return -mj * (pi + pj) / (2 * roj) * grad_spiky_kernel(ri, rj) * r;
 }
 
 // don't forget to multiply by mu
 fn calc_viscosity(mj: f32, vi: vec2<f32>, vj: vec2<f32>, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
-    return (vj - vi) / roj * smooth(ri, rj, lap_viscosity_kernel);
+    return (vj - vi) / roj * lap_viscosity_kernel(ri, rj);
 }
 
 fn calc_color_field(mj: f32, roj: f32, smoothed: f32, r: vec2<f32>) -> vec2<f32> {
@@ -80,12 +112,12 @@ fn calc_color_field(mj: f32, roj: f32, smoothed: f32, r: vec2<f32>) -> vec2<f32>
 
 fn grad_color_field(mj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     let r = normalize(rj - ri);
-    return calc_color_field(mj, roj, smooth(ri, rj, grad_poly6_kernel), r);
+    return calc_color_field(mj, roj, grad_poly6_kernel(ri, rj), r);
 }
 
 fn lap_color_field(mj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     let r = normalize(rj - ri);
-    return calc_color_field(mj, roj, smooth(ri, rj, lap_poly6_kernel), r);
+    return calc_color_field(mj, roj, lap_poly6_kernel(ri, rj), r); 
 }
 
 fn calc_tension(grad: vec2<f32>, lap: vec2<f32>) -> vec2<f32> {
@@ -120,7 +152,7 @@ fn main(
     }
 
     particle.density = density;
-    // todo: write updated particles
+    ins[id] = particle;
 
 // todo: test if working properly, in case move the density update into separate unit
     storageBarrier();

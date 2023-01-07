@@ -135,7 +135,7 @@ impl Fluid {
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, 
-            Access::Read
+            Access::Both
         );
         let particles_out = state.create_buffer(
             particles_size, 
