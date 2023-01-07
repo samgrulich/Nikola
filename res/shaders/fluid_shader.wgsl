@@ -11,7 +11,7 @@ struct Particle {
 @group(0) @binding(3) var<storage> rest_density: f32;
 
 
-let H = 10f;
+let H = 1.2f;
 let PI = 3.1415926535f;
 let gas_constant = 1f;
 let surface_treshold = 1f;

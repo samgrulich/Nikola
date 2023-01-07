@@ -20,7 +20,7 @@ fn main(
     }
 
     let color = vec3(
-        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 3),
+        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 9) - vec2(3.2f, 2f),
         0f
     );
 
@@ -36,8 +36,12 @@ fn main(
         }
     }
 
-    let dst = 1f - step(0.5f, closest);
-    let color = vec3(dst * 0.4f, 0f, dst);
+    let dst = 1f - smoothstep(0f, 0.5f, closest);
+    var color = vec3(dst * 0.7f, 0f, dst);
+
+    if (dst <= 0f) {
+        color = vec3(0.8f);
+    }
 
     textureStore(out_texture, pixel_coords, vec4(color, 1f));
 }
