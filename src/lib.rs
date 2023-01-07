@@ -26,7 +26,7 @@ pub async fn run() {
 
     // fluid setup
     let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
-    let mut water = Fluid::new(&state, fluid_shader, Size::new(4, 4));
+    let mut water = Fluid::new(&state, fluid_shader, Size::new(6, 5));
 
     shader.add_entry(Box::new(water.particles_in.get_binding(Some((Access::Read, )))));
     
@@ -98,8 +98,8 @@ impl Particle {
         Particle { 
             position: [x, y], 
             velocity: [0f32, 0f32],
-            mass: 1f32,
-            density: 1f32,
+            mass: 1000f32,
+            density: 1000f32,
         }
     }
 }
@@ -122,11 +122,13 @@ impl Fluid {
 
         for y in 0..size.height {
             for x in 0..size.width {
-                let particle = Particle::new(
-                    (x) as f32, 
-                    (y + 1) as f32
-                );
-                particles.push(particle)
+                if y < 2 || (y >= 2 && x < 3) {
+                    let particle = Particle::new(
+                        (x) as f32, 
+                        (y + 1) as f32
+                    );
+                    particles.push(particle)
+                }
             }
         }
 
@@ -136,8 +138,9 @@ impl Fluid {
     pub fn new(state: &State, mut shader: Shader, size: Size<u32>) -> Self {
         let start_time = time::Instant::now();
         let particles = Self::create_particles(size);
+        // let size = Size { width: size.width / 2, height: size.height / 2 };
         let particles_size = std::mem::size_of_val(particles.as_slice()) as u64;
-        let rest_density = 1f32;
+        let rest_density = 1000f32;
 
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 
@@ -182,7 +185,7 @@ impl Fluid {
         let mut encoder = self.computer.start_execute();
         encoder.copy_buffer_to_buffer(&self.particles_out, 0, &self.particles_in, 0, self.particles_size);
 
-        let time_step = self.last_time.elapsed().as_secs_f32() * 0.001;
+        let time_step = self.last_time.elapsed().as_secs_f32();
         let instance  = time::Instant::now();
         self.state.queue.write_buffer(&self.time_step, 0, bytemuck::cast_slice(&[time_step]));
 

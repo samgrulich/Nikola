@@ -11,11 +11,11 @@ struct Particle {
 @group(0) @binding(3) var<storage> rest_density: f32;
 
 
-let H = 1.2f;
+let H = 5f;
 let PI = 3.1415926535f;
-let gas_constant = 1f;
-let surface_treshold = 1f;
-let tension_coeficient = 0.2f;
+let gas_constant = 0.2f;
+let surface_treshold = 0.3f;
+let tension_coeficient = 0.1f;
 let viscous_coeficient = 0.7f;
 
 
@@ -191,12 +191,17 @@ fn main(
     let forces = pressure_force + viscous_coeficient * viscous_force + tension_force; 
 
     // calculate acceleration 
-    let acceleration = forces / density;
+    let g = -9.8f;
+    let acceleration = forces / density + vec2(0f, g);
 
     // calculate velocity
-    particle.velocity += acceleration * time_step;
+    particle.velocity += acceleration * time_step * 0.001f;
 
     // calculate new position 
+    if ((particle.position + particle.velocity).y <= 0f) {
+        particle.velocity *= -1f;
+    }
+
     particle.position += particle.velocity;
 
     // update particle velocity, position, density

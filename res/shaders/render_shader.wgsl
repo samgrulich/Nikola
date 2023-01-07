@@ -27,17 +27,23 @@ fn main(
     let position = vec2<f32>(color.xy);
     let particles_len = i32(arrayLength(&particles));
     var closest: f32 = distance(particles[0].position, position);
+    var closest_idx: f32 = 0f;
 
     for (var i: i32 = 0; i < particles_len; i++ ) {
         let dist = distance(particles[i].position, position);
 
         if (dist < closest) {
             closest = dist;
+            closest_idx = f32(i);
         }
     }
 
-    let dst = 1f - smoothstep(0f, 0.5f, closest);
-    var color = vec3(dst * 0.7f, 0f, dst);
+    let dst = 1f - step(0.5f, closest);
+    var color = vec3(
+        dst * 0.7f * closest_idx / 16f, 
+        closest_idx / 16f, 
+        dst
+    );
 
     if (dst <= 0f) {
         color = vec3(0.8f);
