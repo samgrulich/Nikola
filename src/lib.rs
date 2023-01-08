@@ -6,9 +6,36 @@ use std::time;
 mod backend;
 pub use crate::backend::*;
 
+
+enum Mode {
+    ID, 
+    Density,
+    Velocity
+}
+
+impl Mode {
+    pub fn next(&self) -> Self {
+        match *self {
+            Mode::ID => Mode::Density,
+            Mode::Density => Mode::Velocity,
+            Mode::Velocity => Mode::ID,
+        }
+    }
+
+    pub fn get(&self) -> u32 {
+        match *self {
+            Mode::ID => 0,
+            Mode::Density => 1,
+            Mode::Velocity => 2,
+        }
+    }
+}
+
 pub async fn run() {
     let (event_loop, window) = init_window();
     
+    let mut is_active = false;
+    let mut mode = Mode::Density;
     let state = State::new(&window).await;
 
     // shader setup
@@ -28,10 +55,11 @@ pub async fn run() {
     let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
     let mut water = Fluid::new(&state, fluid_shader, Size::new(6, 5));
 
+    let mode_buffer = state.create_buffer_init(&[mode.get()], wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, Access::Read);
     shader.add_entry(Box::new(water.particles_in.get_binding(Some((Access::Read, )))));
+    shader.add_entry(Box::new(mode_buffer.get_binding(None)));
     
     let mut compute = ComputePipeline::new(&state, shader, Size::from_physical(window.inner_size()), Some(Size::new(1, 1)));
-
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -42,15 +70,42 @@ pub async fn run() {
                             // todo: implement shader resizing (down)
                         WindowEvent::Resized( new_size ) => state.resize(new_size), 
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => state.resize(*new_inner_size),
+                        WindowEvent::MouseInput { state, button, .. } => {
+                            match button {
+                                winit::event::MouseButton::Left => {
+                                    is_active = match state {
+                                        winit::event::ElementState::Pressed => {
+                                            true
+                                        }
+                                        winit::event::ElementState::Released => {
+                                            false
+                                        }
+                                    }
+                                },
+                                _ => {}
+                            }
+                        },
+                        WindowEvent::KeyboardInput { input, .. } => {
+                            if let winit::event::KeyboardInput { 
+                                virtual_keycode: Some(winit::event::VirtualKeyCode::Space),
+                                state: winit::event::ElementState::Pressed,
+                                .. 
+                            } = input {
+                                mode = mode.next();
+                                state.queue.write_buffer(&mode_buffer, 0, bytemuck::cast_slice(&[mode.get()]));
+                                dbg!("changed mode", mode.get());
+                            }
+                        }
                         _ => {}
                     }
             },
             Event::MainEventsCleared => {
                 // update app
-                compute.execute();
-                water.update();
-
-                window.request_redraw();
+                if is_active {
+                    compute.execute();
+                    water.update();
+                    window.request_redraw();
+                }
             },
             Event::RedrawRequested(
                 window_id 

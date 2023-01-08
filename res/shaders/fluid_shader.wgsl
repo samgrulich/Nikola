@@ -13,7 +13,7 @@ struct Particle {
 
 let H = 4f;
 let PI = 3.1415926535f;
-let gas_constant = 12f;
+let gas_constant = 4f;
 let surface_treshold = 0.3f;
 let tension_coeficient = 0.0f;
 let viscous_coeficient = 0.7f;
@@ -66,7 +66,7 @@ fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-    return 15f / (PI * pow(H, 6f)) * pow((H - r), 2f) * r;
+    return 45f / (PI * pow(H, 6f)) * pow((H - r), 2f);
 }
 
 fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
@@ -86,6 +86,7 @@ fn lap_viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
+// todo: check this kernel 
     return 45f / (PI * pow(H, 6f)) * (H - r);
 }
 
