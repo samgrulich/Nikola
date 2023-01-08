@@ -39,11 +39,15 @@ fn main(
     }
 
     let dst = 1f - step(0.5f, closest);
-    var color = vec3(
-        dst * 0.7f * closest_idx / 16f, 
-        closest_idx / 16f, 
-        dst
-    );
+    let particle = particles[i32(closest_idx)];
+//    var color = vec3(
+//        dst * 0.7f * closest_idx / 16f, 
+//        closest_idx / 16f, 
+//        dst
+//    );
+
+//    var color = vec3(abs(particle.velocity) * 20f, 0f); 
+    var color = vec3(particle.density - 100f); 
 
     if (dst <= 0f) {
         color = vec3(0.8f);
