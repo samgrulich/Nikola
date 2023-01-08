@@ -98,8 +98,8 @@ impl Particle {
         Particle { 
             position: [x, y], 
             velocity: [0f32, 0f32],
-            mass: 1000f32,
-            density: 1000f32,
+            mass: 10f32,
+            density: 10f32,
         }
     }
 }
@@ -138,9 +138,8 @@ impl Fluid {
     pub fn new(state: &State, mut shader: Shader, size: Size<u32>) -> Self {
         let start_time = time::Instant::now();
         let particles = Self::create_particles(size);
-        // let size = Size { width: size.width / 2, height: size.height / 2 };
         let particles_size = std::mem::size_of_val(particles.as_slice()) as u64;
-        let rest_density = 1000f32;
+        let rest_density = 10f32;
 
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 

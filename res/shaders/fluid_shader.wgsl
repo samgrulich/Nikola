@@ -11,11 +11,11 @@ struct Particle {
 @group(0) @binding(3) var<storage> rest_density: f32;
 
 
-let H = 5f;
+let H = 4f;
 let PI = 3.1415926535f;
-let gas_constant = 0.2f;
+let gas_constant = 12f;
 let surface_treshold = 0.3f;
-let tension_coeficient = 0.1f;
+let tension_coeficient = 0.0f;
 let viscous_coeficient = 0.7f;
 
 
@@ -36,7 +36,7 @@ fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-    return -945f / (64f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 2f) * r;
+    return -945f / (64f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 3f) * r;
 }
 
 fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
@@ -96,12 +96,14 @@ fn calc_density(mj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 }
 
 fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
-    return k * (ro - rest_ro);
+    // return k * (ro - rest_ro);
+    //todo: temporary change
+    return k * ro;
 }
 
 fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     let r = normalize(rj - ri);
-    return -mj * (pi + pj) / (2f * roj) * grad_spiky_kernel(ri, rj) * r;
+    return mj * (pi + pj) / (2f * roj) * grad_spiky_kernel(ri, rj) * r;
 }
 
 // don't forget to multiply by mu
@@ -164,9 +166,9 @@ fn main(
 
     // calculate forces 
     var pressure_force = vec2(0f);
-    var viscous_force = vec2(0f);
-    var tension_grad = vec2(0f);
-    var tension_lap = vec2(0f);
+    var viscous_force  = vec2(0f);
+    var tension_grad   = vec2(0f);
+    var tension_lap    = vec2(0f);
 
     for (var j: i32 = 0; j < i32(arrayLength(&ins)); j++) {
         if (id == u32(j)) {
@@ -188,20 +190,31 @@ fn main(
     }
 
     let tension_force = calc_tension(tension_grad, tension_lap);
-    let forces = pressure_force + viscous_coeficient * viscous_force + tension_force; 
+    let forces = - pressure_force + viscous_coeficient * viscous_force + tension_force; 
 
     // calculate acceleration 
-    let g = -9.8f;
-    let acceleration = forces / density + vec2(0f, g);
+    let g = vec2(0f, -9.8f);
+    let acceleration = forces / density;
 
     // calculate velocity
-    particle.velocity += acceleration * time_step * 0.001f;
+    let time_factor = 0.001f;
+    particle.velocity += acceleration * time_step * time_factor;
 
     // calculate new position 
     if ((particle.position + particle.velocity).y <= 0f) {
-        particle.velocity *= -1f;
+        particle.velocity = reflect(particle.velocity, vec2(0f, 1f));
+    }
+    if ((particle.position + particle.velocity).y >= 5f) {
+        particle.velocity = reflect(particle.velocity, vec2(0f, -1f));
+    }
+    if ((particle.position + particle.velocity).x <= -2f) {
+        particle.velocity = reflect(particle.velocity, vec2(1f, 0f));
+    }
+    if ((particle.position + particle.velocity).x >= 5f) {
+        particle.velocity = reflect(particle.velocity, vec2(-1f, 0f));
     }
 
+    particle.velocity += g * time_step * time_factor;
     particle.position += particle.velocity;
 
     // update particle velocity, position, density
