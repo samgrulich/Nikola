@@ -61,6 +61,8 @@ pub async fn run() {
     
     let mut compute = ComputePipeline::new(&state, shader, Size::from_physical(window.inner_size()), Some(Size::new(1, 1)));
 
+    water.update();
+    compute.execute();
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent { window_id, event } 
@@ -102,10 +104,11 @@ pub async fn run() {
             Event::MainEventsCleared => {
                 // update app
                 if is_active {
-                    compute.execute();
                     water.update();
-                    window.request_redraw();
+                    compute.execute();
                 }
+                
+                window.request_redraw();
             },
             Event::RedrawRequested(
                 window_id 

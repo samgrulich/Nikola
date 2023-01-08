@@ -15,7 +15,7 @@ let H = 4f;
 let PI = 3.1415926535f;
 let gas_constant = 4f;
 let surface_treshold = 0.3f;
-let tension_coeficient = 0.0f;
+let tension_coeficient = 1.0f;
 let viscous_coeficient = 0.7f;
 
 
@@ -36,7 +36,7 @@ fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-    return -945f / (64f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 3f) * r;
+    return -945f / (32f * PI * pow(H, 9f)) * pow(pow(H, 2f) - pow(r, 2f), 2f) * r;
 }
 
 fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
@@ -46,7 +46,7 @@ fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-    return 945f / (32f * PI * pow(H, 9f)) * (pow(H, 2f) - pow(r, 2f)) * (3f * pow(r, 2f) - pow(H, 2f));
+    return 945f / (16f * PI * pow(H, 9f)) * (pow(H, 2f) - pow(r, 2f)) * r;
 }
 
 fn spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
@@ -66,7 +66,7 @@ fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-    return 45f / (PI * pow(H, 6f)) * pow((H - r), 2f);
+    return -45f / (PI * pow(H, 6f)) * pow((H - r), 2f);
 }
 
 fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
@@ -86,8 +86,8 @@ fn lap_viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
         return 0f;
     }
 
-// todo: check this kernel 
-    return 45f / (PI * pow(H, 6f)) * (H - r);
+    // return 45f / (PI * pow(H, 6f)) * (H - r);
+    return 15f / (2f * PI * pow(H, 3f)) * (-3f * r / pow(H, 3f) + 2f / pow(H, 2f) + H / (2f * pow(r, 3f)));
 }
 
 
@@ -203,7 +203,7 @@ fn main(
 
     // calculate new position 
     if ((particle.position + particle.velocity).y <= 0f) {
-        particle.velocity = reflect(particle.velocity, vec2(0f, 1f));
+        particle.velocity = reflect(particle.velocity, vec2(0f, 1f)) * 0.8f;
     }
     if ((particle.position + particle.velocity).y >= 5f) {
         particle.velocity = reflect(particle.velocity, vec2(0f, -1f));
