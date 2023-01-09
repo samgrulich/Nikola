@@ -24,8 +24,11 @@ fn main(
         return;
     }
 
+    var half = vec2<f32>(dimensions / 120);
+    half.x -= half.x * 0.5f;
+    
     let color = vec3(
-        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 10) - vec2(3.5f, 2.25f),
+        vec2<f32>(global_id.xy) / vec2<f32>(dimensions / 30) - half,
         0f
     );
 
@@ -67,13 +70,13 @@ fn main(
     if (position.y < -0.5f) {
         color = background_color;
     }
-    if (position.y > 6.5f) {
+    if (position.y > 20.5f) {
         color = background_color;
     }
-    if (position.x < -2.5f) {
+    if (position.x < -0.6f) {
         color = background_color;
     }
-    if (position.x > 5.5f) {
+    if (position.x > 25.5f) {
         color = background_color;
     }
 

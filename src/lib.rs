@@ -57,7 +57,7 @@ pub async fn run() {
 
     // fluid setup
     let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
-    let mut water = Fluid::new(&state, fluid_shader, Size::new(6, 5));
+    let mut water = Fluid::new(&state, fluid_shader, Size::new(3, 8));
 
     let mode_buffer = state.create_buffer_init(&[mode.get()], wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, Access::Read);
     shader.add_entry(Box::new(water.particles_in.get_binding(Some((Access::Read, )))));
@@ -66,17 +66,58 @@ pub async fn run() {
     
     let mut compute = ComputePipeline::new(&state, shader, Size::from_physical(window.inner_size()), Some(Size::new(1, 1)));
 
+    // setup ui
+    let mut ui_context = imgui::Context::create(); 
+    let mut platform = imgui_winit_support::WinitPlatform::init(&mut ui_context);
+    platform.attach_window(
+        ui_context.io_mut(), 
+        &window, 
+        imgui_winit_support::HiDpiMode::Default,
+    );
+
+    ui_context.set_ini_filename(None);
+
+    set_ui_size(&window, &mut ui_context);
+    let font_size = (13.0 * window.scale_factor()) as f32;
+    ui_context.fonts().add_font(&[imgui::FontSource::DefaultFontData {
+        config: Some(imgui::FontConfig {
+            oversample_h: 1,
+            pixel_snap_h: true,
+            size_pixels: font_size,
+            ..Default::default()
+        }),
+    }]);
+
+    let renderer_config = imgui_wgpu::RendererConfig {
+        texture_format: backend::FORMAT,
+        ..Default::default()
+    };
+    
+    let mut renderer = imgui_wgpu::Renderer::new(&mut ui_context, &state.device, &state.queue, renderer_config);
+
+    // initial update
     water.update();
     compute.execute();
+
+    let mut delta_s = time::Duration::ZERO;
+    let mut last_frame = time::Instant::now();
     event_loop.run(move |event, _, control_flow| {
+        platform.handle_event(ui_context.io_mut(), &window, &event);
+
         match event {
             Event::WindowEvent { window_id, event } 
                 if window_id == window.id() => {
                     match event {
                         WindowEvent::CloseRequested => control_flow.set_exit(),
                             // todo: implement shader resizing (down)
-                        WindowEvent::Resized( new_size ) => state.resize(new_size), 
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => state.resize(*new_inner_size),
+                        WindowEvent::Resized( new_size ) => {
+                            state.resize(new_size);
+                            set_ui_size(&window, &mut ui_context);
+                        },
+                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                            state.resize(*new_inner_size);
+                            set_ui_size(&window, &mut ui_context);
+                        },
                         WindowEvent::MouseInput { state, button, .. } => {
                             match button {
                                 winit::event::MouseButton::Left => {
@@ -105,20 +146,47 @@ pub async fn run() {
                         }
                         _ => {}
                     }
+
             },
             Event::MainEventsCleared => {
                 // update app
                 if is_active {
                     water.update();
                 }
-                
+
+                // app update
                 compute.execute();
                 window.request_redraw();
+                
+                delta_s = last_frame.elapsed();
+                last_frame = time::Instant::now();
             },
             Event::RedrawRequested(
                 window_id 
             ) if window_id == window.id() => {
-                let render_result = render_pipeline.render();
+                ui_context.io_mut().update_delta_time(delta_s);
+
+                platform
+                    .prepare_frame(ui_context.io_mut(), &window)
+                    .expect("Failed to prepare UI frame");
+                let ui = ui_context.frame();
+
+                {
+                    let window = ui.window("Info");
+                    let fps = 1000 / (delta_s.as_millis() + 1);
+                    window
+                        .size([200.0, 80.0], imgui::Condition::FirstUseEver)
+                        .position([0.0, 0.0], imgui::Condition::FirstUseEver)
+                        .build(|| {
+                            ui.text(format!("{:?} FPS, ({:?}micros)", fps, delta_s.as_micros()));
+                            ui.text(format!("Mode: {:?}", &mode));
+                        });
+                }
+                
+                platform.prepare_render(&ui, &window);
+
+                // start actual render
+                let render_result = render_pipeline.render_with_ui(&mut renderer, ui_context.render());
 
                 match render_result {
                     Ok(_) => {},
@@ -133,6 +201,12 @@ pub async fn run() {
             _ => {}
         }
     });
+}
+
+pub fn set_ui_size(window: &winit::window::Window, ui_context: &mut imgui::Context) {
+    let hidpi_factor = window.scale_factor();
+    ui_context.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
 }
 
 pub mod window {
@@ -187,13 +261,11 @@ impl Fluid {
 
         for y in 0..size.height {
             for x in 0..size.width {
-                if x < 3 {
-                    let particle = Particle::new(
-                        (x) as f32, 
-                        (y + 1) as f32
-                    );
-                    particles.push(particle)
-                }
+                let particle = Particle::new(
+                    (x) as f32, 
+                    (y + 2) as f32
+                );
+                particles.push(particle)
             }
         }
 

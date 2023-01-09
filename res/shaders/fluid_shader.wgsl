@@ -13,7 +13,7 @@ struct Particle {
 
 let H = 4f;
 let PI = 3.1415926535f;
-let gas_constant = 0.22f;
+let gas_constant = 0.04f;
 let surface_treshold = 0.3f;
 let tension_coeficient = 0.0f;
 let viscous_coeficient = 0.7f;
@@ -194,7 +194,7 @@ fn main(
     let tension_force = calc_tension(tension_grad, tension_lap);
     surface[id] = length(tension_force);
 //    let forces = - pressure_force + viscous_coeficient * viscous_force + tension_force; 
-    let forces = pressure_force;
+    let forces = pressure_force + viscous_coeficient * viscous_force + tension_force;
 
     // calculate acceleration 
     let g = vec2(0f, -0.1f);
@@ -205,7 +205,7 @@ fn main(
     let time = time_step * time_factor;
 
     particle.velocity += acceleration * time;
-    //particle.velocity += g * time;
+    particle.velocity += g * time;
 
     // check for collisions 
     var new_pos = particle.position + particle.velocity * time;
@@ -218,6 +218,7 @@ fn main(
 
         if (distance(new_pos, neighbor.position) <= 0.9f){
             let normal = new_pos - neighbor.position;
+            // todo: fix particle bouncing
             particle.velocity = reflect(particle.velocity, normalize(normal));
             new_pos += normal * (0.9f - length(normal));
         }
@@ -226,17 +227,17 @@ fn main(
         particle.velocity = reflect(particle.velocity, vec2(0f, 1f));
         new_pos.y += 0f - new_pos.y;
     }
-    if (new_pos.y >= 6f) {
+    if (new_pos.y >= 20f) {
         particle.velocity = reflect(particle.velocity, vec2(0f, -1f));
-        new_pos.y += 6f - new_pos.y;
+        new_pos.y += 20f - new_pos.y;
     }
-    if (new_pos.x <= -2f) {
+    if (new_pos.x <= -0.1f) {
         particle.velocity = reflect(particle.velocity, vec2(1f, 0f));
-        new_pos.x += -2f - new_pos.x;
+        new_pos.x += -0.1f - new_pos.x;
     }
-    if (new_pos.x >= 5f) {
+    if (new_pos.x >= 25f) {
         particle.velocity = reflect(particle.velocity, vec2(-1f, 0f));
-        new_pos.x += 5f - new_pos.x;
+        new_pos.x += 25f - new_pos.x;
     }
 
     // calculate new position 

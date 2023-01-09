@@ -7,7 +7,7 @@ pub use shader::*;
 pub mod state;
 pub use state::*;
 
-const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm; 
+pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm; 
 
 #[derive(Copy, Clone, Debug)]
 /// Specify 2D size (width, height)

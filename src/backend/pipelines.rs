@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use imgui::sys::ImGuiInputTextCallbackData_HasSelection;
+use wgpu::RenderPass;
 use wgpu::util::DeviceExt;
 
 use crate::backend::Shader;
@@ -204,6 +206,34 @@ impl RenderPipeline {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..6, 0, 0..2);
+        }
+
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
+    }
+
+    pub fn render_with_ui(&mut self, renderer: &mut imgui_wgpu::Renderer, draw_data: &imgui::DrawData) -> Result<(), wgpu::SurfaceError> { 
+        let output = self.state.surface.get_current_texture()?;
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render pipeline command encoder"),
+        });
+
+        {
+            let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
+
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..6, 0, 0..2);
+
+            renderer
+                .render(draw_data, &self.state.queue, &self.state.device, &mut render_pass)
+                .expect("Rendering UI failed");
         }
 
         self.state.queue.submit(std::iter::once(encoder.finish()));
