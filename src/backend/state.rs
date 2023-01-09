@@ -4,7 +4,7 @@ use std::rc::Rc;
 use bytemuck::NoUninit;
 use wgpu::util::DeviceExt;
 
-use crate::backend::{FORMAT, Size, binding::{self, Visibility}, Entries, Shader};
+use crate::backend::{FORMAT, Size, binding::{self, Visibility}, Shader};
 
 pub struct StateData {
     pub surface: wgpu::Surface,
@@ -15,7 +15,7 @@ pub struct StateData {
 }
 
 pub struct State {
-    state: Rc<StateData>,
+    pub state: Rc<StateData>,
 }
 
 
@@ -25,14 +25,14 @@ fn config_surface(
     device: &wgpu::Device, 
     size: winit::dpi::PhysicalSize<u32>
 ) {
-        surface.configure(device, &wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: FORMAT, // could request supported from adapter
-            width: size.width,
-            height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto,
-        })
+    surface.configure(device, &wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format: FORMAT, // could request supported from adapter
+        width: size.width,
+        height: size.height,
+        present_mode: wgpu::PresentMode::Fifo,
+        alpha_mode: wgpu::CompositeAlphaMode::Auto,
+    })
 }
 
 impl StateData {
@@ -98,7 +98,7 @@ impl Deref for State {
     type Target = StateData;
 
     fn deref(&self) -> &Self::Target {
-        &self.state
+        self.state.as_ref()
     }
 }
 
@@ -123,14 +123,12 @@ impl State {
         path: &'static str,
         entry: &'static str,
         visibility: Visibility,
-        entries: Entries
     ) -> Shader {
         Shader::new(
             &self, 
             path, 
             entry, 
             visibility, 
-            entries
         )
     }
 

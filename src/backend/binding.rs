@@ -1,8 +1,8 @@
-use std::{rc::Rc, ops::Deref};
+use std::{rc::Rc, ops::Deref, any::Any};
 
 use crate::backend::FORMAT;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Access {
     Write,
     Read,
@@ -28,7 +28,7 @@ impl Access {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 /// Describe how many dimensions is your array structured in
 pub enum Dimension {
     D1,
@@ -56,7 +56,7 @@ impl Dimension {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 /// Describe what shader stage is able to access this data
 pub enum Visibility {
     VERTEX,
@@ -75,12 +75,29 @@ impl Visibility {
     }
 }
 
+pub enum ResourceType {
+    Texture,
+    Buffer,
+    Sampler,
+    Other
+}
+
+impl ResourceType {
+    /// Check if two types are equal
+    pub fn equals(&self, other: Self) -> bool {
+        self.type_id() == other.type_id()
+    }
+}
+
 pub trait Resource {
     /// get bind group layout entry of this resource
     fn get_layout(&self, binding: u32, visibility: Visibility) -> wgpu::BindGroupLayoutEntry;
 
     /// get binding resource of this resource
     fn get_resource(&self) -> wgpu::BindingResource;
+
+    /// return type of the data contained
+    fn get_type(&self) -> ResourceType;
 }
 
 fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType) -> wgpu::BindGroupLayoutEntry {
@@ -93,6 +110,7 @@ fn get_layout_entry(binding: u32, visibility: Visibility, ty: wgpu::BindingType)
 }
 
 
+#[derive(Debug)]
 /// Contains texture and additional data
 pub struct Texture {
     texture: Rc<wgpu::Texture>,
@@ -168,10 +186,15 @@ impl Resource for Texture {
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::TextureView(&self.view) 
     }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Texture
+    }
 }
 
 
 
+#[derive(Debug)]
 /// Trait that signifies the data is referencing buffer
 pub struct Buffer {
     buffer: Rc<wgpu::Buffer>,
@@ -216,10 +239,15 @@ impl Resource for Buffer {
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Buffer(self.buffer.as_entire_buffer_binding())
     }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Buffer
+    }
 }
 
 
 
+#[derive(Debug)]
 pub struct Sampler {
     sampler: wgpu::Sampler,
 }
@@ -246,6 +274,10 @@ impl Resource for Sampler {
 
     fn get_resource(&self) -> wgpu::BindingResource {
         wgpu::BindingResource::Sampler(&self.sampler)
+    }
+
+    fn get_type(&self) -> ResourceType {
+        ResourceType::Sampler
     }
 }
 

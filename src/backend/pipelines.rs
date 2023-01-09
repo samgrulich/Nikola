@@ -1,4 +1,6 @@
 use std::rc::Rc;
+use imgui::sys::ImGuiInputTextCallbackData_HasSelection;
+use wgpu::RenderPass;
 use wgpu::util::DeviceExt;
 
 use crate::backend::Shader;
@@ -7,16 +9,15 @@ use crate::backend::state::*;
 use crate::backend::binding;
 use crate::backend::Size;
 
+use super::FORMAT;
+
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     position: [f32; 3],
     uv: [f32; 2],
 }
-
-unsafe impl bytemuck::Zeroable for Vertex { }
-unsafe impl bytemuck::Pod for Vertex { }
 
 impl Vertex {
     pub fn new(data: [f32; 5]) -> Self {
@@ -32,14 +33,14 @@ impl Vertex {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
                     shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
                 wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
                 }
             ],
         }
@@ -48,7 +49,7 @@ impl Vertex {
 
 pub struct Rect {
     vertices: [Vertex; 4],
-    indices: [i32; 6]
+    indices: [u16; 6]
 }
 
 const RECT: Rect = Rect {
@@ -84,8 +85,8 @@ impl RenderPipeline {
             state.size, 
             wgpu::TextureUsages::STORAGE_BINDING | 
             wgpu::TextureUsages::TEXTURE_BINDING, 
-            binding::Access::Read,
-            true
+            binding::Access::Both,
+            false
         );
 
             // segup specific inputs
@@ -94,17 +95,14 @@ impl RenderPipeline {
            // setup exceptional inputs
         let vertex_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
-            contents: bytemuck::cast_slice(RECT.vertices.as_slice()),
+            contents: bytemuck::cast_slice(&RECT.vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = state.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index buffer"),
-            contents: bytemuck::cast_slice(RECT.indices.as_slice()),
+            contents: bytemuck::cast_slice(&RECT.indices),
             usage: wgpu::BufferUsages::INDEX,
         });
-       
-            // clone state ref
-        let state = state.get_state();
 
         // bind the generic inputs
         fragment.add_entry(Box::new(texture.get_view(None)));
@@ -113,7 +111,7 @@ impl RenderPipeline {
         let layout = state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor { 
             label: None, 
             bind_group_layouts: &[
-                &fragment.get_layout().unwrap(),
+                fragment.get_layout().unwrap(),
             ], 
             push_constant_ranges: &[]
         });
@@ -121,12 +119,12 @@ impl RenderPipeline {
             label: None, 
             layout: Some(&layout), 
             vertex: wgpu::VertexState { 
-                module: &vertex.module, 
+                module: vertex.get_module(), 
                 entry_point: vertex.entry_point, 
                 buffers: &[Vertex::desc()] // vertex description
             }, 
             primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
+                topology: wgpu::PrimitiveTopology::TriangleList, // todo
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None,
@@ -138,11 +136,11 @@ impl RenderPipeline {
             multisample: wgpu::MultisampleState::default(),
             fragment: Some(
                 wgpu::FragmentState { 
-                    module: &fragment.module, 
+                    module: fragment.get_module(), 
                     entry_point: fragment.entry_point, 
                     targets: &[Some(
                         wgpu::ColorTargetState {
-                            format: wgpu::TextureFormat::Rgba8UnormSrgb, // todo FORMAT?
+                            format: FORMAT, // todo FORMAT?
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         }
@@ -152,7 +150,12 @@ impl RenderPipeline {
             multiview: None,
         });
 
-        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state }
+        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state: state.get_state() }
+    }
+
+    /// Get a handle to the render texture
+    pub fn get_texture(&self, access: binding::Access, is_storage: bool) -> binding::Texture {
+        self.texture.get_view(Some((access, binding::Dimension::D2, is_storage)))
     }
 
     /// Creates render pass with instructions to clear display in place
@@ -187,7 +190,7 @@ impl RenderPipeline {
     }
 
     /// Plot input texture onto the surface
-    pub fn render(&self) -> Result<(), wgpu::SurfaceError> { 
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> { 
         let output = self.state.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -199,9 +202,38 @@ impl RenderPipeline {
             let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
 
             render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..6, 0, 0..2);
+        }
+
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+        output.present();
+
+        Ok(())
+    }
+
+    pub fn render_with_ui(&mut self, renderer: &mut imgui_wgpu::Renderer, draw_data: &imgui::DrawData) -> Result<(), wgpu::SurfaceError> { 
+        let output = self.state.surface.get_current_texture()?;
+        let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render pipeline command encoder"),
+        });
+
+        {
+            let mut render_pass = RenderPipeline::begin_render_pass(&mut encoder, &view);
+
+            render_pass.set_pipeline(&self.pipeline);
+            render_pass.set_bind_group(0, self.fragment.get_bind_group().unwrap(), &[]);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..6, 0, 0..2);
+
+            renderer
+                .render(draw_data, &self.state.queue, &self.state.device, &mut render_pass)
+                .expect("Rendering UI failed");
         }
 
         self.state.queue.submit(std::iter::once(encoder.finish()));
@@ -236,10 +268,11 @@ impl ComputePipeline {
             ],
             push_constant_ranges: &[]
         });
+
         let pipeline = state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: None,
             layout: Some(&layout),
-            module: &shader.module,
+            module: shader.get_module(),
             entry_point: shader.entry_point,
         });
 
@@ -257,6 +290,27 @@ impl ComputePipeline {
         result
     }
 
+    /// Regenerate the binding layout and pipeline
+    fn refresh_binding(&mut self) {
+        self.shader.refresh_binding();
+
+        let layout = self.state.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[
+                self.shader.get_layout().unwrap()
+            ],
+            push_constant_ranges: &[]
+        });
+        let pipeline = self.state.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor { 
+            label: None, 
+            layout: Some(&layout), 
+            module: self.shader.get_module(), 
+            entry_point: self.shader.entry_point 
+        });
+
+        self.pipeline = pipeline;
+    }
+
     /// Get the count of workgroups needed to be dispatched
     fn compute_workgroups(&mut self) {
         let workgroups = self.size.fit_other(self.workgroup_size);
@@ -264,20 +318,32 @@ impl ComputePipeline {
         self.workgroups = Some(workgroups);
     }
 
-
-    /// Future public function: not implemented fully, 
-    /// it's useless for now
-    fn resize(&mut self, size: Size<u32>) { 
+    /// Resize size of this pipeline, ! keep in mind if you are using this pipeline to 
+    /// render to texture you need to resize the texture first
+    pub fn resize(&mut self, size: Size<u32>) { 
        self.size = size; 
        self.compute_workgroups();
        self.shader.refresh_binding();
-       // todo: refresh the pipeline and layout
-
+       self.refresh_binding();
        // todo: implement TextureComputePipelines
+    }
+
+    /// Swap shader resources and refresh pipeline binding
+    pub fn swap_resources(&mut self, first: usize, second: usize) {
+        match self.shader.swap_resources(first, second) {
+            Ok(_) => { self.refresh_binding() },
+            Err(err) => eprintln!("{:?}", err),
+        }
     }
 
     /// Execute the shader
     pub fn execute(&mut self) {
+        let encoder = self.start_execute();
+        self.state.queue.submit(std::iter::once(encoder.finish()));
+    }
+
+    /// Start execution
+    pub fn start_execute(&mut self) -> wgpu::CommandEncoder {
         let bind_group = self.shader.get_bind_group().unwrap();
         let mut encoder = self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
@@ -297,6 +363,6 @@ impl ComputePipeline {
             compute_pass.dispatch_workgroups(workgroups.width, workgroups.height, 1);
         }
 
-        self.state.queue.submit(std::iter::once(encoder.finish()));
+        encoder
     }
 }
