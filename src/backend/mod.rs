@@ -62,12 +62,3 @@ where T: num_traits::Unsigned + Copy, u32: From<T>
     }
 }
 
-// swap chain object 
-    
-// most of the time pipelines:
-// 1. I pipeline - I bind group
-// 2. pipelines are either compute or render and follow simmilar pattern
-// 3. one type visibilities are bound to one pipeline
-//
-// setup 
-// execute

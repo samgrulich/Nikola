@@ -57,7 +57,7 @@ pub async fn run() {
 
     // fluid setup
     let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
-    let mut water = Fluid::new(&state, fluid_shader, Size::new(3, 8));
+    let mut water = Fluid::new(&state, fluid_shader, Size::new(12, 12));
 
     let mode_buffer = state.create_buffer_init(&[mode.get()], wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, Access::Read);
     shader.add_entry(Box::new(water.particles_in.get_binding(Some((Access::Read, )))));
@@ -241,6 +241,13 @@ impl Particle {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct FluidInfo {
+    time_step: f32,
+    width: u32,
+}
+
 pub struct Fluid {
     computer: ComputePipeline,
     state: Rc<StateData>,
@@ -250,7 +257,8 @@ pub struct Fluid {
     particles_size: wgpu::BufferAddress,
 
     last_time: time::Instant,
-    time_step: Buffer,
+    info: FluidInfo,
+    info_buffer: Buffer,
 
     surface: Buffer,
 }
@@ -277,6 +285,10 @@ impl Fluid {
         let particles = Self::create_particles(size);
         let particles_size = std::mem::size_of_val(particles.as_slice()) as u64;
         let _rest_density = 10f32;
+        let info = FluidInfo{ 
+            time_step: 0f32,
+            width: size.width as u32,
+        };
 
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 
@@ -288,8 +300,8 @@ impl Fluid {
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             Access::Write
         );
-        let time_step = state.create_buffer_init(
-            &[0f32], 
+        let info_buffer = state.create_buffer_init(
+            &[info], 
             wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,  
             Access::Read
         );
@@ -301,7 +313,7 @@ impl Fluid {
 
         shader.add_entry(Box::new(particles_in.get_binding(None)));
         shader.add_entry(Box::new(particles_out.get_binding(None)));
-        shader.add_entry(Box::new(time_step.get_binding(None)));
+        shader.add_entry(Box::new(info_buffer.get_binding(None)));
         // shader.create_storage_buffer_init(
         //     &[rest_density], 
         //     Access::Read
@@ -316,7 +328,8 @@ impl Fluid {
             particles_in, 
             particles_out, 
             particles_size, 
-            time_step,
+            info_buffer,
+            info,
             last_time: start_time,
             surface: surface.get_binding(Some((Access::Read,))),
         }
@@ -330,7 +343,8 @@ impl Fluid {
         let _time_step = self.last_time.elapsed().as_secs_f32();
         let time_step = 0.1f32;
         let instance  = time::Instant::now();
-        self.state.queue.write_buffer(&self.time_step, 0, bytemuck::cast_slice(&[time_step]));
+        self.info.time_step = time_step;
+        self.state.queue.write_buffer(&self.info_buffer, 0, bytemuck::cast_slice(&[self.info]));
 
         self.last_time = instance;
         self.state.queue.submit(std::iter::once(encoder.finish()));

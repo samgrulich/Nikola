@@ -5,15 +5,20 @@ struct Particle {
     @location(3) density: f32,
 }
 
+struct Data {
+    @location(0) time_step: f32,
+    @location(1) width: u32,
+}
+
 @group(0) @binding(0) var<storage, read_write> ins:  array<Particle>;
 @group(0) @binding(1) var<storage, read_write> outs: array<Particle>;
-@group(0) @binding(2) var<storage> time_step: f32;
+@group(0) @binding(2) var<storage> info: Data;
 @group(0) @binding(3) var<storage, read_write> surface: array<f32>;
 
 
 let H = 4f;
 let PI = 3.1415926535f;
-let gas_constant = 0.04f;
+let gas_constant = 0.08f;
 let surface_treshold = 0.3f;
 let tension_coeficient = 0.0f;
 let viscous_coeficient = 0.7f;
@@ -138,13 +143,11 @@ fn calc_tension(grad: vec2<f32>, lap: vec2<f32>) -> vec2<f32> {
     let force = - tension_coeficient * lap * normalize(grad);
 }
 
-
-
 @compute @workgroup_size(8, 8)
 fn main(
     @builtin(global_invocation_id) global_id: vec3<u32>,
 ) {
-    let id = global_id.y * 4u + global_id.x;
+    let id = global_id.y * info.width + global_id.x;
     var particle = ins[id];
 
     let pressure = calc_particle_pressure(gas_constant, particle.density, rest_density);
@@ -202,7 +205,7 @@ fn main(
 
     // calculate velocity
     let time_factor = 1f;
-    let time = time_step * time_factor;
+    let time = info.time_step * time_factor;
 
     particle.velocity += acceleration * time;
     particle.velocity += g * time;
@@ -216,7 +219,7 @@ fn main(
 
         let neighbor = ins[j];
 
-        if (distance(new_pos, neighbor.position) <= 0.9f){
+        if (distance(new_pos, neighbor.position) <= 0.2f){
             let normal = new_pos - neighbor.position;
             // todo: fix particle bouncing
             particle.velocity = reflect(particle.velocity, normalize(normal));
