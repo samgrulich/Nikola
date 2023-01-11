@@ -1,6 +1,4 @@
 use std::rc::Rc;
-use imgui::sys::ImGuiInputTextCallbackData_HasSelection;
-use wgpu::RenderPass;
 use wgpu::util::DeviceExt;
 
 use crate::backend::Shader;
@@ -67,7 +65,7 @@ const RECT: Rect = Rect {
 
 pub struct RenderPipeline {
     texture: binding::Texture,
-    vertex: Shader,
+    _vertex: Shader,
     fragment: Shader,
 
     vertex_buffer: wgpu::Buffer,
@@ -150,7 +148,15 @@ impl RenderPipeline {
             multiview: None,
         });
 
-        RenderPipeline { texture, vertex, fragment, vertex_buffer, index_buffer, pipeline, state: state.get_state() }
+        RenderPipeline { 
+            texture, 
+            _vertex: vertex, 
+            fragment, 
+            vertex_buffer, 
+            index_buffer, 
+            pipeline, 
+            state: state.get_state() 
+        }
     }
 
     /// Get a handle to the render texture
@@ -177,7 +183,7 @@ impl RenderPipeline {
     }
 
     /// !!! Not fully implemented, may cause bugs (bind group missalignments)
-    fn resize(&mut self, size: Size<u32>) {
+    fn _resize(&mut self, size: Size<u32>) {
         let usage = wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::TEXTURE_BINDING;
         let new_texture = self.state.create_raw_texture(size, usage);
 
@@ -254,7 +260,7 @@ pub struct ComputePipeline {
     workgroup_size: Size<u32>, // size of single work group
     workgroups: Option<Size<u32>>, // work groups count
     size: Size<u32>,
-    size_z: Option<u32>,
+    _size_z: Option<u32>,
 }
 
 impl ComputePipeline {
@@ -283,7 +289,7 @@ impl ComputePipeline {
             workgroup_size,
             workgroups: None,
             size, 
-            size_z: None 
+            _size_z: None 
         };
         result.compute_workgroups();
 

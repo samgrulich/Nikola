@@ -276,7 +276,7 @@ impl Fluid {
         let start_time = time::Instant::now();
         let particles = Self::create_particles(size);
         let particles_size = std::mem::size_of_val(particles.as_slice()) as u64;
-        let rest_density = 10f32;
+        let _rest_density = 10f32;
 
         let particles_in = state.create_buffer_init(
             particles.as_slice(), 
@@ -327,7 +327,7 @@ impl Fluid {
         let mut encoder = self.computer.start_execute();
         encoder.copy_buffer_to_buffer(&self.particles_out, 0, &self.particles_in, 0, self.particles_size);
 
-        let time_step = self.last_time.elapsed().as_secs_f32();
+        let _time_step = self.last_time.elapsed().as_secs_f32();
         let time_step = 0.1f32;
         let instance  = time::Instant::now();
         self.state.queue.write_buffer(&self.time_step, 0, bytemuck::cast_slice(&[time_step]));
