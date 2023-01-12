@@ -46,7 +46,7 @@ fn main(
         }
     }
 
-    let dst = 1f - step(0.5f, closest);
+    let dst = 1f - step(0.2f, closest);
     let particle = particles[i32(closest_idx)];
     var color = vec3(particle.density - 0.5f); 
 

@@ -57,7 +57,7 @@ pub async fn run() {
 
     // fluid setup
     let fluid_shader = Shader::new(&state, "./res/shaders/fluid_shader.wgsl", "main", Visibility::COMPUTE);
-    let mut water = Fluid::new(&state, fluid_shader, Size::new(12, 12));
+    let mut water = Fluid::new(&state, fluid_shader, Size::new(20, 5));
 
     let mode_buffer = state.create_buffer_init(&[mode.get()], wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST, Access::Read);
     shader.add_entry(Box::new(water.particles_in.get_binding(Some((Access::Read, )))));

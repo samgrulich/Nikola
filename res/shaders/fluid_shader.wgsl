@@ -16,7 +16,7 @@ struct Data {
 @group(0) @binding(3) var<storage, read_write> surface: array<f32>;
 
 
-let H = 4f;
+let H = 6f;
 let PI = 3.1415926535f;
 let gas_constant = 0.08f;
 let surface_treshold = 0.3f;
@@ -28,7 +28,7 @@ let rest_density = 10f;
 fn poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -38,7 +38,7 @@ fn poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -48,7 +48,7 @@ fn grad_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -58,7 +58,7 @@ fn lap_poly6_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -68,7 +68,7 @@ fn spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -78,7 +78,7 @@ fn grad_spiky_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -88,7 +88,7 @@ fn viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 fn lap_viscosity_kernel(ri: vec2<f32>, rj: vec2<f32>) -> f32 {
     let r = distance(ri, rj);
 
-    if (H < r || r < 0f) {
+    if (H < r || r <= 0f) {
         return 0f;
     }
 
@@ -103,22 +103,34 @@ fn calc_density(mj: f32, ri: vec2<f32>, rj: vec2<f32>) -> f32 {
 
 fn calc_particle_pressure(k: f32, ro: f32, rest_ro: f32) -> f32 {
     // return k * (ro - rest_ro);
-    //todo: temporary change
     return k * ro;
 }
 
 fn calc_pressure(mj: f32, pi: f32, pj: f32, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
     let r = normalize(rj - ri);
+
+    if (roj == 0f) {
+        return vec2(0f);
+    }
+
+//    return mj * (pi + pj) / (2f * roj) * grad_spiky_kernel(ri, rj) * r;
     return mj * pj / roj * grad_spiky_kernel(ri, rj) * r;
-    //return mj * (pi + pj) / (2f * roj) * grad_spiky_kernel(ri, rj) * r;
 }
 
 // don't forget to multiply by mu
 fn calc_viscosity(mj: f32, vi: vec2<f32>, vj: vec2<f32>, roj: f32, ri: vec2<f32>, rj: vec2<f32>) -> vec2<f32> {
+    if (roj == 0f) {
+        return vec2(0f);
+    }
+
     return (vj - vi) / roj * lap_viscosity_kernel(ri, rj);
 }
 
 fn calc_color_field(mj: f32, roj: f32, smoothed: f32, r: vec2<f32>) -> vec2<f32> {
+    if (roj == 0f) {
+        return vec2(0f);
+    }
+
     return mj * (1f / roj) * smoothed * r;
 }
 
@@ -150,8 +162,6 @@ fn main(
     let id = global_id.y * info.width + global_id.x;
     var particle = ins[id];
 
-    let pressure = calc_particle_pressure(gas_constant, particle.density, rest_density);
-
     // calculate density
     var density = 0f;
     for (var j: i32 = 0; j < i32(arrayLength(&ins)); j++) {
@@ -162,6 +172,8 @@ fn main(
         let neighbor = ins[j];
         density += calc_density(neighbor.mass, particle.position, neighbor.position);
     }
+    
+    let pressure = calc_particle_pressure(gas_constant, particle.density, rest_density);
 
     particle.density = density;
     ins[id] = particle;
@@ -201,14 +213,18 @@ fn main(
 
     // calculate acceleration 
     let g = vec2(0f, -0.1f);
-    let acceleration = forces / density;
+    var acceleration = vec2(0f);
+
+    if (density != 0f) {
+        acceleration = forces / density;
+    }
 
     // calculate velocity
     let time_factor = 1f;
     let time = info.time_step * time_factor;
 
+    acceleration += g;
     particle.velocity += acceleration * time;
-    particle.velocity += g * time;
 
     // check for collisions 
     var new_pos = particle.position + particle.velocity * time;
@@ -223,7 +239,7 @@ fn main(
             let normal = new_pos - neighbor.position;
             // todo: fix particle bouncing
             particle.velocity = reflect(particle.velocity, normalize(normal));
-            new_pos += normal * (0.9f - length(normal));
+            new_pos += normal * (0.4f - length(normal));
         }
     }
     if (new_pos.y <= 0f) {
