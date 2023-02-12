@@ -15,17 +15,32 @@ struct Sphere {
 }
 
 #[derive(Component)]
-pub struct Particle;
+pub enum ParticleType {
+    Solid,
+    Fluid
+}
 
-#[derive(Component, Default)]
-pub struct Movement {
-    velocity: Vec3,
+#[derive(Component, Default, Deref, DerefMut)]
+pub struct Velocity {
+    value: Vec3,
+}
+
+#[derive(Component, Default, Deref, DerefMut)]
+pub struct Density {
+    value: f32, 
+}
+
+#[derive(Component, Default, Deref, DerefMut)]
+pub struct Mass {
+    value: f32,
 }
 
 #[derive(Bundle)]
 pub struct ParticleBundle {
-    _p: Particle,
-    movement: Movement,
+    _p: ParticleType,
+    velocity: Velocity,
+    density: Density,
+    mass: Mass,
 
     #[bundle]
     object: PbrBundle,
@@ -34,8 +49,10 @@ pub struct ParticleBundle {
 impl ParticleBundle {
     pub fn new(object: PbrBundle) -> Self {
         ParticleBundle { 
-            _p: Particle, 
-            movement: Movement::default(),
+            _p: ParticleType::Fluid, 
+            velocity: default(),
+            density: default(),
+            mass: default(),
             object 
         }
     }
