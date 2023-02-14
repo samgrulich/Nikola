@@ -91,7 +91,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere { radius: 0.1f32, subdivisions: 1 }));
+    let sphere_mesh = meshes.add(Mesh::from(shape::Icosphere { radius: 0.1f32, subdivisions: 4 }));
     // let sphere_mesh = meshes.add(Mesh::from(shape::Cube { size: 1f32 }));
     let sphere_material = materials.add(Color::rgb(0.8, 0.4, 0.1).into());
 
