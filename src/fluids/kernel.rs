@@ -22,13 +22,13 @@ fn smoothing_kernel_component(x_i: f32, x_j: f32, h: f32) -> f32 {
     1.0/h.powi(DIMENSIONS) * cubic_spline(distance)
 }
 
-fn smoothing_kernel(x_i: Vec3, x_j: Vec3, h: f32) -> f32 {
+pub fn smoothing_kernel(x_i: Vec3, x_j: Vec3, h: f32) -> f32 {
     let distance = x_i.distance(x_j) / h;
 
     1.0/h.powi(DIMENSIONS) * cubic_spline(distance)
 }
 
-fn smoothing_kernel_grad(x_i: Vec3, x_j: Vec3, h: f32) -> Vec3 {
+pub fn smoothing_kernel_grad(x_i: Vec3, x_j: Vec3, h: f32) -> Vec3 {
     let x = smoothing_kernel_component(x_i.x, x_j.x, h);
     let y = smoothing_kernel_component(x_i.y, x_j.y, h);
     let z = smoothing_kernel_component(x_i.z, x_j.z, h);
