@@ -7,6 +7,8 @@ use bevy_flycam::{PlayerPlugin, FlyCam};
 mod particles;
 pub use particles::*;
 
+mod fluids;
+
 
 pub const WIDTH: f32 = 1280f32;
 pub const HEIGHT: f32 = 720f32;
