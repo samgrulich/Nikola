@@ -11,6 +11,7 @@ mod simulation;
 pub use simulation::*;
 
 mod fluids;
+pub use fluids::*;
 
 
 pub const WIDTH: f32 = 1280f32;
