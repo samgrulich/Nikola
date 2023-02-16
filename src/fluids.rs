@@ -6,6 +6,6 @@ pub mod neighborhoods;
 pub use kernel::*;
 pub use particle::*;
 pub use pressure::*;
-pub mod neighborhoods::*;
+pub use neighborhoods::*;
 
 const SMOOTHING_LENGHT: f32 = 2.0;

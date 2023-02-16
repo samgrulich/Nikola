@@ -4,6 +4,7 @@ use crate::fluids::kernel;
 use crate::fluids;
 
 pub struct SmoothedParticle {
+    pub id: i32,
     pub position: Vec3,
     pub velocity: Vec3,
     velocity_predict: Vec3,
@@ -16,11 +17,13 @@ pub struct SmoothedParticle {
 
 impl SmoothedParticle {
     pub fn new(
+        id: i32,
         position: Vec3, 
         density: f32,
         mass: f32,
     ) -> Self {
         SmoothedParticle {
+            id,
             position,
             velocity: Vec3::ZERO,
             velocity_predict: Vec3::ZERO,
