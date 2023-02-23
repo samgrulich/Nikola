@@ -15,6 +15,8 @@ pub struct SmoothedParticle {
     pub density: f32,
     density_predict: f32,
 
+    pub dsph_factor: f32,
+
     mass: f32,
 }
 
@@ -32,6 +34,7 @@ impl SmoothedParticle {
             velocity_predict: Vec3::ZERO,
             density,
             density_predict: density,
+            dsph_factor: 0.0,
             mass,
         }
     }

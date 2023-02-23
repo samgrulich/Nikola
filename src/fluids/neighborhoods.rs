@@ -146,11 +146,19 @@ impl Neighborhoods {
 
     pub fn get_neighbors(&self, position: Vec3) -> Option<LinkedList<Rc<SmoothedParticle>>> {
         // make a dependency to position inside the cell (instead checking 3x3x3, check only 2x2x2)
+        // possible perforamnce issues due to the copy() calls
         
         let mut result = match self.get_entry(position).0 {
             Some(list) => list.clone(),
             None => return None
         };
+
+        // remove original particle
+        for (index, particle) in (&result).iter().enumerate() {
+            if particle.position == position {
+                result.remove(index)
+            }
+        }
 
         let pos_index = (position / fluids::SMOOTHING_LENGHT).floor();
         let pos_index = IVec3::new(pos_index.x as i32, pos_index.y as i32, pos_index.z as i32);

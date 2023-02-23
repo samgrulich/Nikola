@@ -45,34 +45,62 @@ impl Fluid {
 }
 
 impl Fluid {
-    fn correct_density(&self, threshold: f32, delta_time: f32) {
+    fn correct_density(&mut self, threshold: f32, delta_time: f32) {
         let mut iteration = 0;
 
-        while (iteration < 2) && (self.average_density - self.rest_density > threshold) {
-            for particle in &self.particles {
+        // todo: change average density to include density predict instead i guess
+        while (iteration < 2) || (self.average_density - self.rest_density > threshold) {
+            for particle in &mut self.particles {
                 let j_particles = self.neighborhoods.get_neighbors(particle.position);
 
-                if j_particles.is_none() {
-                    continue;
+                if let Some(others) = j_particles {
+                    particle.borrow_mut().compute_density_predict_inplace(&others, delta_time);
                 }
-
-                let j_particles = j_particles.unwrap();
-                particle.compute_density_predict(&j_particles, delta_time);
             }
 
-            // for particles i compute p_i
-            //  velocity_predict = velocity_predict - delta_time * sum ...
+            for particle in &mut self.particles {
+                // compute p_i for particle
+            }
+
+            for particle in &mut self.particles {
+                // update future velocity
+            }
 
             iteration += 1;
         }
     }
 
-    fn correct_divergence() {
+    fn correct_divergence(&mut self, threshold: f32, delta_time: f32) {
+        let mut iteration = 0;
+        // todo: compute average_density_over_time
+
+        while (iteration < 1) || (average_density_over_time > threshold) {
+            for particle in &mut self.particles {
+                // compute density_over_time
+            }
+
+            for particle in &mut self.particles {
+                // compute p_v_i 
+            }
+            
+            for particle in &mut self.particles {
+                // update future velocities
+            }
+            
+            // update average_density_over_time
+            iteration += 1;
+        }
         // for particles i 
     }
 
-    pub fn dfsph(&self, particles: &[SmoothedParticle], delta_time: f32) {
-        // let k_factor = self.compute_dsph_factor(others);
+    pub fn dfsph(&self, delta_time: f32) {
+        for particle in &mut self.particles {
+            let neighbors = self.neighborhoods.get_neighbors(particle.position);
+
+            if let Some(others) = neighbors {
+                particle.borrow_mut() = particle.compute_dsph_factor(&others);
+            }
+        }
         // let pressure_value = 1.0 / delta_time * self.compute_density_derivate(others) * self.density.powi(2) / k_factor;
 
         // compute nonp acceleration
