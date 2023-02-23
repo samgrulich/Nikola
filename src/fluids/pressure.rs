@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, borrow::BorrowMut};
 use crate::fluids::{particle::SmoothedParticle, neighborhoods::Neighborhoods};
 
 // const SPEED_OF_SOUND: f32 = 0.3;
@@ -45,16 +45,26 @@ impl Fluid {
 }
 
 impl Fluid {
-    fn correct_density(&self, threshold: f32) {
+    fn correct_density(&self, threshold: f32, delta_time: f32) {
         let mut iteration = 0;
 
         while (iteration < 2) && (self.average_density - self.rest_density > threshold) {
+            for particle in &self.particles {
+                let j_particles = self.neighborhoods.get_neighbors(particle.position);
+
+                if j_particles.is_none() {
+                    continue;
+                }
+
+                let j_particles = j_particles.unwrap();
+                particle.compute_density_predict(&j_particles, delta_time);
+            }
+
+            // for particles i compute p_i
+            //  velocity_predict = velocity_predict - delta_time * sum ...
+
             iteration += 1;
         }
-        // for particles i compute density_predict
-        //
-        // for particles i compute p_i
-        //  velocity_predict = velocity_predict - delta_time * sum ...
     }
 
     fn correct_divergence() {

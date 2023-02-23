@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+use std::rc::Rc;
+use std::collections::LinkedList;
+
 use crate::fluids::kernel;
 use crate::fluids;
 
@@ -35,7 +38,7 @@ impl SmoothedParticle {
 }
 
 impl SmoothedParticle {
-    pub fn interpolate(&self, others: &[SmoothedParticle], qtities_j: &[f32]) -> f32 {
+    pub fn interpolate(&self, others: &LinkedList<Rc<SmoothedParticle>>, qtities_j: &[f32]) -> f32 {
         let mut qtity_i: f32 = 0.0;
 
         for (other, qtity_j) in others.iter().zip(qtities_j.iter()) {
@@ -45,7 +48,7 @@ impl SmoothedParticle {
         qtity_i
     }
 
-    pub fn interpolate_grad(&self, others: &[SmoothedParticle], qtity_i: f32, qtities_j: &[f32]) -> Vec3 {
+    pub fn interpolate_grad(&self, others: &LinkedList<Rc<SmoothedParticle>>, qtity_i: f32, qtities_j: &[f32]) -> Vec3 {
         let mut qtity: Vec3 = Vec3::ZERO;
         
         for (other, qtity_j) in others.iter().zip(qtities_j.iter()) {
@@ -55,7 +58,7 @@ impl SmoothedParticle {
         self.density * qtity
     }
 
-    pub fn interpolate_div(&self, others: &[SmoothedParticle], qtity_i: &Vec3, qtities_j: &[Vec3]) -> f32 {
+    pub fn interpolate_div(&self, others: &LinkedList<Rc<SmoothedParticle>>, qtity_i: &Vec3, qtities_j: &[Vec3]) -> f32 {
         let mut qtity: f32 = 0.0;
         
         for (other, qtity_j) in others.iter().zip(qtities_j.iter()) {
@@ -65,7 +68,7 @@ impl SmoothedParticle {
         -1.0/self.density * qtity
     }
 
-    pub fn interpolate_curl(&self, others: &[SmoothedParticle], qtity_i: &Vec3, qtities_j: &[Vec3]) -> Vec3 {
+    pub fn interpolate_curl(&self, others: &LinkedList<Rc<SmoothedParticle>>, qtity_i: &Vec3, qtities_j: &[Vec3]) -> Vec3 {
         let mut qtity: Vec3 = Vec3::ZERO;
         
         for (other, qtity_j) in others.iter().zip(qtities_j.iter()) {
@@ -75,7 +78,7 @@ impl SmoothedParticle {
         1.0/self.density * qtity
     }
     
-    pub fn interpolate_lap(&self, others: &[SmoothedParticle], qtity_i: f32, qtities_j: &[f32]) -> f32 {
+    pub fn interpolate_lap(&self, others: &LinkedList<Rc<SmoothedParticle>>, qtity_i: f32, qtities_j: &[f32]) -> f32 {
         let mut qtity: f32 = 0.0;
         
         for (other, qtity_j) in others.iter().zip(qtities_j.iter()) {
@@ -88,7 +91,7 @@ impl SmoothedParticle {
 }
 
 impl SmoothedParticle {
-    pub fn compute_density_derivate(&self, others: &[SmoothedParticle]) -> f32 {
+    pub fn compute_density_derivate(&self, others: &LinkedList<Rc<SmoothedParticle>>) -> f32 {
         let mut density_div = 0.0;
         
         for other in others.iter() {
@@ -98,7 +101,7 @@ impl SmoothedParticle {
         density_div
     }
 
-    pub fn compute_dsph_factor(&self, others: &[SmoothedParticle]) -> f32 {
+    pub fn compute_dsph_factor(&self, others: &LinkedList<Rc<SmoothedParticle>>) -> f32 {
         let mut inner_sum = Vec3::ZERO;
         let mut outter_sum = 0.0; 
 
@@ -110,7 +113,7 @@ impl SmoothedParticle {
         inner_sum.length().powi(2) + outter_sum
     }
 
-    pub fn compute_density_predict(&self, others: &[SmoothedParticle], delta_time: f32) -> f32 {
+    pub fn compute_density_predict(&self, others: &LinkedList<Rc<SmoothedParticle>>, delta_time: f32) -> f32 {
         let mut sum = 0.0;
 
         for other in others {
@@ -120,7 +123,7 @@ impl SmoothedParticle {
         self.density + delta_time * sum
     }
 
-    pub fn compute_density_predict_inplace(&mut self, others: &[SmoothedParticle], delta_time: f32) {
+    pub fn compute_density_predict_inplace(&mut self, others: &LinkedList<Rc<SmoothedParticle>>, delta_time: f32) {
         self.density = self.compute_density_predict(others, delta_time);
     }
 }

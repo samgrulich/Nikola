@@ -1,4 +1,4 @@
-use bevy::prelude::Vec3;
+use bevy::prelude::{Vec3, IVec3};
 
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
@@ -7,19 +7,55 @@ use std::collections::{HashMap, LinkedList};
 use crate::fluids::{self, SmoothedParticle};
 
 
-const P1: f32 = 73856093.0;
-const P2: f32 = 19349663.0;
-const P3: f32 = 83492791.0;
+const P1: i32 = 73856093;
+const P2: i32 = 19349663;
+const P3: i32 = 83492791;
 
+
+#[derive(Clone, Copy)]
+pub struct GVec3 {
+    x: f32, 
+    y: f32,
+    z: f32,
+}
+
+impl GVec3 {
+    pub fn new_i32(x: i32, y: i32, z: i32) -> Self {
+        GVec3 { x: x as f32, y: y as f32, z: z as f32 }
+    }
+
+    pub fn from_f32(vector: Vec3) -> Self {
+        GVec3 { x: vector.x, y: vector.y, z: vector.z }
+    }
+
+    pub fn from_i32(vector: IVec3) -> Self {
+        GVec3 { x: vector.x as f32, y: vector.y as f32, z: vector.z as f32 }
+    }
+}
+
+impl GVec3 {
+    pub fn as_f32(&self) -> Vec3 {
+        Vec3::new(self.x, self.y, self.z)
+    }
+
+    pub fn as_i32(&self) -> IVec3 {
+        IVec3::new(self.x as i32, self.y as i32, self.z as i32)
+    }
+}
+
+pub fn hash_index(position_index: GVec3, table_size: i32) -> i32 {
+    let index_vec = position_index.as_i32();
+
+    ((index_vec.x * P1)
+        ^ (index_vec.y * P2)
+        ^ (index_vec.z * P3)
+    ) % table_size
+}
 
 pub fn hash_function(position: Vec3, table_size: i32) -> i32 {
-    let position = position.clone();
-    let index_vec = (position / fluids::SMOOTHING_LENGHT).floor();
+    let index_vec = GVec3::from_f32((position / fluids::SMOOTHING_LENGHT).floor());
 
-    ((index_vec.x * P1).floor() as i32 
-        ^ (index_vec.y * P2).floor() as i32
-        ^ (index_vec.z * P3).floor() as i32 
-    ) % table_size
+    hash_index(index_vec, table_size)
 }
 
 pub struct Neighborhoods {
@@ -72,6 +108,13 @@ impl Neighborhoods {
 
         (result, index)
     }
+    
+    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&LinkedList<Rc<SmoothedParticle>>>, i32) {
+        let index = hash_index(position_index, self.max_size);
+        let result = self.entries.get(&index);
+
+        (result, index)
+    }
 
     pub fn insert(&mut self, particle: Rc<SmoothedParticle>) -> Result<(), &str> {
         let particle = particle.clone();
@@ -99,6 +142,31 @@ impl Neighborhoods {
 
     pub fn get(&self, position: Vec3) -> Option<&LinkedList<Rc<SmoothedParticle>>> {
         self.get_entry(position).0
+    }
+
+    pub fn get_neighbors(&self, position: Vec3) -> Option<LinkedList<Rc<SmoothedParticle>>> {
+        // make a dependency to position inside the cell (instead checking 3x3x3, check only 2x2x2)
+        
+        let mut result = match self.get_entry(position).0 {
+            Some(list) => list.clone(),
+            None => return None
+        };
+
+        let pos_index = (position / fluids::SMOOTHING_LENGHT).floor();
+        let pos_index = IVec3::new(pos_index.x as i32, pos_index.y as i32, pos_index.z as i32);
+
+        for z in pos_index.z-1..=pos_index.z+1 {
+            for y in pos_index.y-1..=pos_index.y+1 {
+                for x in pos_index.x-1..=pos_index.x+1 {
+                    match self.get_entry_by_index(GVec3::new_i32(x, y, z)).0 {
+                        Some(list) => result.append(&mut list.clone()), 
+                        _ => ()
+                    }
+                }
+            }
+        }
+
+        Some(result)
     }
 }
 
