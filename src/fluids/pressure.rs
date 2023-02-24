@@ -1,5 +1,6 @@
 use std::{rc::Rc, borrow::BorrowMut};
-use crate::fluids::{particle::SmoothedParticle, neighborhoods::Neighborhoods};
+use bevy::prelude::Vec3;
+use crate::{fluids::{particle::SmoothedParticle, neighborhoods::Neighborhoods, kernel}, smoothing_kernel_grad};
 
 // const SPEED_OF_SOUND: f32 = 0.3;
 // const SPEED_OF_SOUND: f32 = 1480.0; // m/s in water
@@ -59,11 +60,22 @@ impl Fluid {
             }
 
             for particle in &mut self.particles {
-                // compute p_i for particle
+                particle.pressure = 1.0 / delta_time.powi(2) * (particle.density_predict - self.rest_density) * particle.dsph_factor;
             }
 
             for particle in &mut self.particles {
-                // update future velocity
+                let mut sum = Vec3::ZERO;
+                let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
+
+                for neighbor in neighbors {
+                    sum += neighbor.mass
+                            * (particle.pressure / particle.density.powi(2)   // these may be predicts
+                                + neighbor.pressure / neighbor.density.powi(2) // here too
+                                )
+                            * kernel::smoothing_kernel_grad(particle.position, neighbor.position, None);
+                }
+
+                particle.velocity_predict = particle.velocity_predict - delta_time * sum;
             }
 
             iteration += 1;
@@ -73,32 +85,51 @@ impl Fluid {
     fn correct_divergence(&mut self, threshold: f32, delta_time: f32) {
         let mut iteration = 0;
         // todo: compute average_density_over_time
+        let mut average_density_over_time = 0.0;
+        let mut density_over_time_sum = 0.0;
 
         while (iteration < 1) || (average_density_over_time > threshold) {
             for particle in &mut self.particles {
-                // compute density_over_time
+                let mut neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
+
+                let density_over_time_i = -particle.density * particle.interpolate_div(&neighbors, "velocity_predict"); 
+                density_over_time_sum += density_over_time_i;
             }
 
             for particle in &mut self.particles {
-                // compute p_v_i 
+                let mut density_over_time = 0.0;
+                let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
+
+                for neighbor in neighbors {
+                    density_over_time += neighbor.mass * (particle.velocity - neighbor.velocity).dot(kernel::smoothing_kernel_grad(particle.position, neighbor.position, None));
+                }
+
+                particle.pressure_value = 1.0 / delta_time * 0.0 * particle.dsph_factor;
             }
             
             for particle in &mut self.particles {
-                // update future velocities
+                let mut sum = Vec3::ZERO;
+                let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
+
+                for neighbor in neighbors {
+                    sum += neighbor.mass * (particle.pressure_value / particle.density.powi(2) + neighbor.pressure_value / neighbor.density.powi(2)) * smoothing_kernel_grad(particle.position, neighbor.position, None)
+                }
+
+                particle.velocity_predict = particle.velocity_predict - delta_time * sum;
             }
             
-            // update average_density_over_time
+            average_density_over_time = density_over_time_sum / self.particles.len() as f32;
             iteration += 1;
         }
-        // for particles i 
     }
 
     pub fn dfsph(&self, delta_time: f32) {
         for particle in &mut self.particles {
+            let particle = particle.borrow_mut();
             let neighbors = self.neighborhoods.get_neighbors(particle.position);
 
             if let Some(others) = neighbors {
-                particle.borrow_mut() = particle.compute_dsph_factor(&others);
+                particle.dsph_factor = particle.compute_dsph_factor(&others);
             }
         }
         // let pressure_value = 1.0 / delta_time * self.compute_density_derivate(others) * self.density.powi(2) / k_factor;

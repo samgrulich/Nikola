@@ -2,7 +2,7 @@ use bevy::prelude::{Vec3, IVec3};
 
 use std::rc::Rc;
 use std::ops::{Deref, DerefMut};
-use std::collections::{HashMap, LinkedList};
+use std::collections::HashMap;
 
 use crate::fluids::{self, SmoothedParticle};
 
@@ -59,7 +59,7 @@ pub fn hash_function(position: Vec3, table_size: i32) -> i32 {
 }
 
 pub struct Neighborhoods {
-    entries: HashMap<i32, LinkedList<Rc<SmoothedParticle>>>,
+    entries: HashMap<i32, Vec<Rc<SmoothedParticle>>>,
     max_size: i32,
 }
 
@@ -95,21 +95,21 @@ impl Neighborhoods {
         hash_function(position, self.max_size)
     }
 
-    fn get_entry(&self, position: Vec3) -> (Option<&LinkedList<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry(&self, position: Vec3) -> (Option<&Vec<Rc<SmoothedParticle>>>, i32) {
         let index = self.get_index(position);
         let result = self.entries.get(&index);
 
         (result, index)
     }
 
-    fn get_entry_mut(&mut self, position: Vec3) -> (Option<&mut LinkedList<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry_mut(&mut self, position: Vec3) -> (Option<&mut Vec<Rc<SmoothedParticle>>>, i32) {
         let index = self.get_index(position);
         let result = self.entries.get_mut(&index);
 
         (result, index)
     }
     
-    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&LinkedList<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&Vec<Rc<SmoothedParticle>>>, i32) {
         let index = hash_index(position_index, self.max_size);
         let result = self.entries.get(&index);
 
@@ -121,7 +121,7 @@ impl Neighborhoods {
         let entries = self.get_entry_mut(particle.position);
 
         if let (None, index) = entries {
-            let list = LinkedList::from([particle]);
+            let list = vec![particle];
             self.entries.insert(index, list);
 
             return Ok(());
@@ -134,17 +134,17 @@ impl Neighborhoods {
                 return Err("Particle already inserted");
             } 
 
-            particle_list.push_back(particle);
+            particle_list.push(particle);
         }
 
         Ok(())
     }
 
-    pub fn get(&self, position: Vec3) -> Option<&LinkedList<Rc<SmoothedParticle>>> {
+    pub fn get(&self, position: Vec3) -> Option<&Vec<Rc<SmoothedParticle>>> {
         self.get_entry(position).0
     }
 
-    pub fn get_neighbors(&self, position: Vec3) -> Option<LinkedList<Rc<SmoothedParticle>>> {
+    pub fn get_neighbors(&self, position: Vec3) -> Option<Vec<Rc<SmoothedParticle>>> {
         // make a dependency to position inside the cell (instead checking 3x3x3, check only 2x2x2)
         // possible perforamnce issues due to the copy() calls
         
@@ -156,7 +156,7 @@ impl Neighborhoods {
         // remove original particle
         for (index, particle) in (&result).iter().enumerate() {
             if particle.position == position {
-                result.remove(index)
+                result.remove(index);
             }
         }
 
@@ -179,7 +179,7 @@ impl Neighborhoods {
 }
 
 impl Deref for Neighborhoods {
-    type Target = HashMap<i32, LinkedList<Rc<SmoothedParticle>>>;
+    type Target = HashMap<i32, Vec<Rc<SmoothedParticle>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.entries 
