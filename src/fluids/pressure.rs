@@ -1,4 +1,4 @@
-use std::{rc::Rc, borrow::BorrowMut};
+use std::{rc::Rc, borrow::BorrowMut, ops::DerefMut};
 use bevy::prelude::Vec3;
 use crate::{
     fluids::{
@@ -68,12 +68,12 @@ impl Fluid {
                 let j_particles = self.neighborhoods.get_neighbors(particle.position);
 
                 if let Some(others) = j_particles {
-                    particle.borrow_mut().compute_density_predict_inplace(&others, self.delta_time);
+                    particle.get_mut().compute_density_predict_inplace(&others, self.delta_time);
                 }
             }
 
             for particle in &mut self.particles {
-                particle.pressure = 1.0 / self.delta_time.powi(2) * (particle.density_predict - self.rest_density) * particle.dsph_factor;
+                particle.get_mut().pressure = 1.0 / self.delta_time.powi(2) * (particle.density_predict - self.rest_density) * particle.dsph_factor;
             }
 
             for particle in &mut self.particles {
@@ -103,13 +103,14 @@ impl Fluid {
 
         while (iteration < 1) || (average_density_over_time > threshold) {
             for particle in &mut self.particles {
-                let mut neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
+                let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
 
                 let density_over_time_i = -particle.density * particle.interpolate_div(&neighbors, "velocity_predict"); 
                 density_over_time_sum += density_over_time_i;
             }
 
             for particle in &mut self.particles {
+                let &mut particle = particle.deref_mut();
                 let mut density_over_time = 0.0;
                 let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
 
@@ -179,7 +180,7 @@ impl Fluid {
         self.correct_divergence(self.divergence_threshold);
         // update velocity
         for particle in &mut self.particles {
-            particle.velocity = self.velocity_predict;
+            particle.velocity = particle.velocity_predict;
         }
     }
 }
