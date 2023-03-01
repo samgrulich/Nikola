@@ -1,4 +1,4 @@
-use std::{rc::Rc, borrow::BorrowMut, ops::DerefMut};
+use std::{borrow::BorrowMut, ops::DerefMut};
 use bevy::prelude::Vec3;
 use crate::{
     fluids::{
@@ -7,6 +7,7 @@ use crate::{
         non_pressure::advect,
         kernel,
     }, 
+    memory::Rcc,
     smoothing_kernel_grad,
 };
 
@@ -25,7 +26,7 @@ pub fn state_of_equation_sound(density: f32) -> f32 {
 }
 
 pub struct Fluid {
-    particles: Vec<Rc<SmoothedParticle>>,
+    particles: Vec<Rcc<SmoothedParticle>>,
     neighborhoods: Neighborhoods,
     particle_size: f32,
 
@@ -68,12 +69,12 @@ impl Fluid {
                 let j_particles = self.neighborhoods.get_neighbors(particle.position);
 
                 if let Some(others) = j_particles {
-                    particle.get_mut().compute_density_predict_inplace(&others, self.delta_time);
+                    particle.compute_density_predict_inplace(&others, self.delta_time);
                 }
             }
 
             for particle in &mut self.particles {
-                particle.get_mut().pressure = 1.0 / self.delta_time.powi(2) * (particle.density_predict - self.rest_density) * particle.dsph_factor;
+                particle.pressure = 1.0 / self.delta_time.powi(2) * (particle.density_predict - self.rest_density) * particle.dsph_factor;
             }
 
             for particle in &mut self.particles {

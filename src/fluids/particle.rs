@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::fluids::kernel;
 use crate::fluids;
 
+#[derive(Debug, Clone, Copy)]
 pub struct SmoothedParticle {
     pub id: i32,
     pub position: Vec3,

@@ -1,10 +1,14 @@
 use bevy::prelude::{Vec3, IVec3};
 
-use std::rc::Rc;
-use std::ops::{Deref, DerefMut};
-use std::collections::HashMap;
+use std::{
+    ops::{Deref, DerefMut},
+    collections::HashMap,
+};
 
-use crate::fluids::{self, SmoothedParticle};
+use crate::{
+    fluids::{self, SmoothedParticle},
+    memory::Rcc,
+};
 
 
 const P1: i32 = 73856093;
@@ -59,7 +63,7 @@ pub fn hash_function(position: Vec3, table_size: i32) -> i32 {
 }
 
 pub struct Neighborhoods {
-    entries: HashMap<i32, Vec<Rc<SmoothedParticle>>>,
+    entries: HashMap<i32, Vec<Rcc<SmoothedParticle>>>,
     max_size: i32,
 }
 
@@ -71,7 +75,7 @@ impl Neighborhoods {
         }
     }
 
-    pub fn from(particles: Vec<Rc<SmoothedParticle>>) -> Self {
+    pub fn from(particles: Vec<Rcc<SmoothedParticle>>) -> Self {
         let mut neighborhoods = Neighborhoods {
             entries: HashMap::new(),
             max_size: particles.len() as i32,
@@ -95,28 +99,28 @@ impl Neighborhoods {
         hash_function(position, self.max_size)
     }
 
-    fn get_entry(&self, position: Vec3) -> (Option<&Vec<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry(&self, position: Vec3) -> (Option<&Vec<Rcc<SmoothedParticle>>>, i32) {
         let index = self.get_index(position);
         let result = self.entries.get(&index);
 
         (result, index)
     }
 
-    fn get_entry_mut(&mut self, position: Vec3) -> (Option<&mut Vec<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry_mut(&mut self, position: Vec3) -> (Option<&mut Vec<Rcc<SmoothedParticle>>>, i32) {
         let index = self.get_index(position);
         let result = self.entries.get_mut(&index);
 
         (result, index)
     }
     
-    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&Vec<Rc<SmoothedParticle>>>, i32) {
+    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&Vec<Rcc<SmoothedParticle>>>, i32) {
         let index = hash_index(position_index, self.max_size);
         let result = self.entries.get(&index);
 
         (result, index)
     }
 
-    pub fn insert(&mut self, particle: Rc<SmoothedParticle>) -> Result<(), &str> {
+    pub fn insert(&mut self, particle: Rcc<SmoothedParticle>) -> Result<(), &str> {
         let particle = particle.clone();
         let entries = self.get_entry_mut(particle.position);
 
@@ -140,11 +144,11 @@ impl Neighborhoods {
         Ok(())
     }
 
-    pub fn get(&self, position: Vec3) -> Option<&Vec<Rc<SmoothedParticle>>> {
+    pub fn get(&self, position: Vec3) -> Option<&Vec<Rcc<SmoothedParticle>>> {
         self.get_entry(position).0
     }
 
-    pub fn get_neighbors(&self, position: Vec3) -> Option<Vec<Rc<SmoothedParticle>>> {
+    pub fn get_neighbors(&self, position: Vec3) -> Option<Vec<Rcc<SmoothedParticle>>> {
         // make a dependency to position inside the cell (instead checking 3x3x3, check only 2x2x2)
         // possible perforamnce issues due to the copy() calls
         
@@ -179,7 +183,7 @@ impl Neighborhoods {
 }
 
 impl Deref for Neighborhoods {
-    type Target = HashMap<i32, Vec<Rc<SmoothedParticle>>>;
+    type Target = HashMap<i32, Vec<Rcc<SmoothedParticle>>>;
 
     fn deref(&self) -> &Self::Target {
         &self.entries 

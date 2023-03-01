@@ -5,7 +5,7 @@ use std::{
 };
 
 #[derive(Debug)]
-struct Rcc<T: Copy> {
+pub struct Rcc<T: Copy> {
     data: Rc<RefCell<T>>,
 }
 
@@ -22,7 +22,13 @@ impl<T: Copy> Rcc<T> {
         }
     }
 }
- 
+
+impl<T: Copy> Clone for Rcc<T> {
+    fn clone(&self) -> Self {
+        Rcc::from_other(self)
+    }
+}
+
 impl<T: Copy> Deref for Rcc<T> {
     type Target = T;
 
