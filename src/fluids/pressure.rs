@@ -111,8 +111,8 @@ impl Fluid {
             }
 
             for particle in &mut self.particles {
-                let &mut particle = particle.deref_mut();
                 let mut density_over_time = 0.0;
+                let particle = particle.deref_mut();
                 let neighbors = self.neighborhoods.get_neighbors(particle.position).unwrap_or_default();
 
                 for neighbor in neighbors {
@@ -144,7 +144,7 @@ impl Fluid {
 
     pub fn dfsph(&mut self) {
         for particle in &mut self.particles {
-            let particle = particle.borrow_mut();
+            let particle: &mut SmoothedParticle = particle.borrow_mut();
             let neighbors = self.neighborhoods.get_neighbors(particle.position);
 
             if let Some(others) = neighbors {
@@ -164,14 +164,14 @@ impl Fluid {
         self.correct_density(self.density_threshold);
 
         // for particles i update position
-        for particle in self.particles {
-            let &mut particle = particle.borrow_mut();
+        for particle in &mut self.particles {
+            let particle: &mut SmoothedParticle = particle.borrow_mut();
 
             particle.position += particle.velocity_predict * self.delta_time;
         }
 
         // update neighborhoods (refresh hash table)
-        self.neighborhoods = Neighborhoods::from(self.particles);
+        self.neighborhoods = Neighborhoods::from(&mut self.particles);
 
         // for particles do 
         //  update density 

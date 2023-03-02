@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 
-use std::rc::Rc;
-
-use crate::fluids::kernel;
-use crate::fluids;
+use crate::{
+    fluids::{
+        self, 
+        kernel
+    },
+    memory::Rcc,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SmoothedParticle {
@@ -69,7 +72,7 @@ impl SmoothedParticle {
 }
 
 impl SmoothedParticle {
-    pub fn interpolate(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> f32 {
+    pub fn interpolate(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> f32 {
         let mut qtity_i: f32 = 0.0;
 
         for other in others.iter() {
@@ -81,7 +84,7 @@ impl SmoothedParticle {
         qtity_i
     }
 
-    pub fn interpolate_grad(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> Vec3 {
+    pub fn interpolate_grad(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
         let mut qtity = Vec3::ZERO;
         let qtity_i = self.get_vec3(field).unwrap();
         
@@ -94,7 +97,7 @@ impl SmoothedParticle {
         self.density * qtity
     }
     
-    pub fn interpolate_grad_f32(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> Vec3 {
+    pub fn interpolate_grad_f32(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
         let mut qtity = Vec3::ZERO;
         let qtity_i = self.get_f32(field).unwrap();
         
@@ -107,7 +110,7 @@ impl SmoothedParticle {
         self.density * qtity
     }
 
-    pub fn interpolate_div(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> f32 {
+    pub fn interpolate_div(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> f32 {
         let mut qtity: f32 = 0.0;
         let qtity_i = self.get_vec3(field).unwrap();
         
@@ -120,7 +123,7 @@ impl SmoothedParticle {
         -1.0/self.density * qtity
     }
 
-    pub fn interpolate_curl(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> Vec3 {
+    pub fn interpolate_curl(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
         let mut qtity: Vec3 = Vec3::ZERO;
         let qtity_i = self.get_vec3(field).unwrap();
         
@@ -134,7 +137,7 @@ impl SmoothedParticle {
     }
     
     // todo: implement laplacian for scalars
-    pub fn interpolate_lap(&self, others: &Vec<Rc<SmoothedParticle>>, field: &str) -> Vec3 {
+    pub fn interpolate_lap(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
         let mut qtity = Vec3::ZERO;
         let qtity_i = self.get_vec3(field).unwrap();
         
@@ -151,7 +154,7 @@ impl SmoothedParticle {
 }
 
 impl SmoothedParticle {
-    pub fn compute_density_derivate(&self, others: &Vec<Rc<SmoothedParticle>>) -> f32 {
+    pub fn compute_density_derivate(&self, others: &Vec<Rcc<SmoothedParticle>>) -> f32 {
         let mut density_div = 0.0;
         
         for other in others.iter() {
@@ -161,7 +164,7 @@ impl SmoothedParticle {
         density_div
     }
 
-    pub fn compute_dsph_factor(&self, others: &Vec<Rc<SmoothedParticle>>) -> f32 {
+    pub fn compute_dsph_factor(&self, others: &Vec<Rcc<SmoothedParticle>>) -> f32 {
         let mut inner_sum = Vec3::ZERO;
         let mut outter_sum = 0.0; 
 
@@ -173,7 +176,7 @@ impl SmoothedParticle {
         self.density.powi(2) / inner_sum.length().powi(2) + outter_sum
     }
 
-    pub fn compute_density_predict(&self, others: &Vec<Rc<SmoothedParticle>>, delta_time: f32) -> f32 {
+    pub fn compute_density_predict(&self, others: &Vec<Rcc<SmoothedParticle>>, delta_time: f32) -> f32 {
         let mut sum = 0.0;
 
         for other in others {
@@ -183,7 +186,7 @@ impl SmoothedParticle {
         self.density + delta_time * sum
     }
 
-    pub fn compute_density_predict_inplace(&mut self, others: &Vec<Rc<SmoothedParticle>>, delta_time: f32) {
+    pub fn compute_density_predict_inplace(&mut self, others: &Vec<Rcc<SmoothedParticle>>, delta_time: f32) {
         self.density = self.compute_density_predict(others, delta_time);
     }
 }

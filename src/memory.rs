@@ -1,7 +1,7 @@
 use std::{
     rc::Rc,
     cell::RefCell,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, borrow::{BorrowMut, Borrow},
 };
 
 #[derive(Debug)]
@@ -46,3 +46,20 @@ impl<T: Copy> DerefMut for Rcc<T> {
         }.unwrap()
     }
 }
+
+impl<T: Copy> Borrow<T> for Rcc<T> {
+    fn borrow(&self) -> &T {
+        unsafe {
+            self.data.as_ptr().as_ref()
+        }.unwrap()
+    }
+}
+
+impl<T: Copy> BorrowMut<T> for Rcc<T> {
+    fn borrow_mut(&mut self) -> &mut T {
+        unsafe {
+            (*self.data).as_ptr().as_mut()
+        }.unwrap()
+    }
+}
+

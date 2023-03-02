@@ -75,7 +75,7 @@ impl Neighborhoods {
         }
     }
 
-    pub fn from(particles: Vec<Rcc<SmoothedParticle>>) -> Self {
+    pub fn from(particles: &mut Vec<Rcc<SmoothedParticle>>) -> Self {
         let mut neighborhoods = Neighborhoods {
             entries: HashMap::new(),
             max_size: particles.len() as i32,
@@ -158,10 +158,15 @@ impl Neighborhoods {
         };
 
         // remove original particle
-        for (index, particle) in (&result).iter().enumerate() {
+        let mut current_index = None;
+        for (index, particle) in result.iter().enumerate() {
             if particle.position == position {
-                result.remove(index);
+                current_index = Some(index);
             }
+        }
+        
+        if current_index.is_some() {
+            result.remove(current_index.unwrap());
         }
 
         let pos_index = (position / fluids::SMOOTHING_LENGHT).floor();
