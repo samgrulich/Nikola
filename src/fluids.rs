@@ -10,5 +10,6 @@ pub use pressure::*;
 pub use non_pressure::*;
 pub use neighborhoods::*;
 
-const SMOOTHING_LENGHT: f32 = 2.0;
-const GRAVITATIONAL_ACCELERATION: f32 = -9.81;
+pub const SMOOTHING_LENGHT: f32 = 2.0;
+pub const GRAVITATIONAL_ACCELERATION: f32 = -9.81;
+pub const REST_DENSITY: f32 = 1000.0;

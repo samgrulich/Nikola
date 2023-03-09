@@ -10,7 +10,7 @@ use crate::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct SmoothedParticle {
-    pub id: i32,
+    pub id: u32,
     pub position: Vec3,
     pub velocity: Vec3,
     pub velocity_predict: Vec3,
@@ -28,7 +28,7 @@ pub struct SmoothedParticle {
 
 impl SmoothedParticle {
     pub fn new(
-        id: i32,
+        id: u32,
         position: Vec3, 
         density: f32,
         mass: f32,

@@ -25,10 +25,26 @@ pub fn state_of_equation_sound(density: f32) -> f32 {
     SPEED_OF_SOUND_2 * density
 }
 
+pub struct FluidConfig {
+    cfl_parameter: f32, // ~0.4
+    density_threshold: f32, // ~0.125-0.3
+    divergence_threshold: f32, // ?? probably ~0.125-0.3
+}
+
+impl Default for FluidConfig {
+    fn default() -> Self {
+        Self { 
+            cfl_parameter: 0.4, 
+            density_threshold: 0.150, 
+            divergence_threshold: 0.22
+        } 
+    }
+}
+
 pub struct Fluid {
     particles: Vec<Rcc<SmoothedParticle>>,
     neighborhoods: Neighborhoods,
-    particle_size: f32,
+    particle_radius: f32,
 
     cfl_parameter: f32, // ~0.4
     density_threshold: f32, // ~0.125-0.3
@@ -39,6 +55,33 @@ pub struct Fluid {
 
     max_velocity: f32, // todo: check if being set properly
     delta_time: f32,
+}
+
+impl Fluid {
+    pub fn from_particles(config: FluidConfig, raw_particles: Vec<(u32, Vec3)>, rest_density: f32, particle_radius: f32, delta_time: f32) -> Self {
+        let mut particles: Vec<Rcc<SmoothedParticle>> = Vec::new();
+        let particle_mass: f32 = 4.0/3.0 * std::f32::consts::PI * particle_radius.powi(3);
+
+        for raw_particle in raw_particles {
+            let particle = SmoothedParticle::new(raw_particle.0, raw_particle.1, rest_density, particle_mass);
+            particles.push(Rcc::new(particle));
+        }
+
+        let mut neighborhoods = Neighborhoods::from(&mut particles);
+
+        Fluid { 
+            particles, 
+            neighborhoods,
+            particle_radius, 
+            cfl_parameter: config.cfl_parameter, 
+            density_threshold: config.density_threshold, 
+            divergence_threshold: config.divergence_threshold, 
+            rest_density, 
+            average_density: rest_density, 
+            max_velocity: 0.0, 
+            delta_time,
+        }
+    }
 }
 
 impl Fluid {
@@ -139,7 +182,7 @@ impl Fluid {
     }
 
     pub fn apply_cfl(&mut self) {
-        self.delta_time = self.cfl_parameter * self.particle_size / self.get_max_velocity();
+        self.delta_time = self.cfl_parameter * self.particle_radius / self.get_max_velocity();
     }
 
     pub fn dfsph(&mut self) {

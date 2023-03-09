@@ -5,8 +5,6 @@ pub const PARTICLE_RADIUS: f32 = 0.1;
 pub const PARTICLE_OFFSET: f32 = 0.1;
 pub const FLUID_OFFSET: f32 = 10.0;
 
-pub const GRAVITY_ACCELERATION: f32 = 9.81;
-
 
 #[derive(Resource)]
 struct Sphere {
@@ -20,28 +18,10 @@ pub enum ParticleType {
     Fluid
 }
 
-#[derive(Component, Default, Deref, DerefMut)]
-pub struct Velocity {
-    value: Vec3,
-}
-
-#[derive(Component, Default, Deref, DerefMut)]
-pub struct Density {
-    value: f32, 
-}
-
-#[derive(Component, Default, Deref, DerefMut)]
-pub struct Mass {
-    value: f32,
-}
-
 #[derive(Bundle)]
 pub struct ParticleBundle {
     _p: ParticleType,
-    velocity: Velocity,
-    density: Density,
-    mass: Mass,
-
+    
     #[bundle]
     object: PbrBundle,
 }
@@ -50,9 +30,6 @@ impl ParticleBundle {
     pub fn new(object: PbrBundle) -> Self {
         ParticleBundle { 
             _p: ParticleType::Fluid, 
-            velocity: default(),
-            density: default(),
-            mass: default(),
             object 
         }
     }
