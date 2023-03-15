@@ -31,26 +31,42 @@ impl<T: Copy> Clone for Rcc<T> {
 impl<T: Copy> Deref for Rcc<T> {
     type Target = T;
 
-    fn deref(&self) -> &Self::Target {
-        self.data.lock().unwrap().deref()
+    fn deref<>(&self) -> &Self::Target {
+        let ptr: *const T = self.data.lock().unwrap().deref();
+
+        unsafe {
+            ptr.as_ref().unwrap()
+        }
     }
 }
 
 impl<T: Copy> DerefMut for Rcc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.data.lock().unwrap().deref_mut()
+        let ptr: *mut T = self.data.lock().unwrap().deref_mut();
+
+        unsafe {
+            ptr.as_mut().unwrap()
+        }
     }
 }
 
 impl<T: Copy> Borrow<T> for Rcc<T> {
     fn borrow(&self) -> &T {
-        self.data.lock().unwrap().deref()
+        let ptr: *const T = self.data.lock().unwrap().deref();
+
+        unsafe {
+            ptr.as_ref().unwrap()
+        }
     }
 }
 
 impl<T: Copy> BorrowMut<T> for Rcc<T> {
     fn borrow_mut(&mut self) -> &mut T {
-        self.data.lock().unwrap().deref_mut()
+        let ptr: *mut T = self.data.lock().unwrap().deref_mut();
+
+        unsafe {
+            ptr.as_mut().unwrap()
+        }
     }
 }
 
