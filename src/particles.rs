@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub const DIMENSIONS: (i32, i32, i32) = (20, 20, 20);
+pub const DIMENSIONS: (i32, i32, i32) = (4, 2, 4);
 pub const PARTICLE_RADIUS: f32 = 0.1;
 pub const PARTICLE_OFFSET: f32 = 0.1;
 pub const FLUID_OFFSET: f32 = 10.0;
@@ -35,8 +35,6 @@ impl ParticleBundle {
     }
 }
 
-
-
 fn spawn(
     dimensions: (i32, i32, i32),
     commands: &mut Commands,
@@ -44,6 +42,9 @@ fn spawn(
 )
 {
     let offset = PARTICLE_RADIUS + PARTICLE_OFFSET;
+    let center = (offset.ceil() as i32 * IVec3::from(dimensions)) / 2;
+
+    dbg!("fluid cetner: ", center);
 
     for z in 0..dimensions.2 {
         for y in 0..dimensions.1 {

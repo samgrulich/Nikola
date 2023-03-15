@@ -12,7 +12,8 @@ use crate::{
 pub fn advect_particle(mut particle: Rcc<SmoothedParticle>, delta_time: f32) {
     let particle = particle.deref_mut();
 
-    particle.velocity_predict = particle.velocity + Vec3::new(0.0, GRAVITATIONAL_ACCELERATION * delta_time, 0.0)
+    dbg!(particle.velocity, GRAVITATIONAL_ACCELERATION * delta_time);
+    particle.velocity_predict = particle.velocity + Vec3::new(0.0, GRAVITATIONAL_ACCELERATION * delta_time, 0.0);
 }
 
 pub fn advect(particles: &Vec<Rcc<SmoothedParticle>>, delta_time: f32) {

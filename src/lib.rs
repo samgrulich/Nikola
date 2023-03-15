@@ -44,6 +44,16 @@ fn setup(
 
 fn additional_camera_setup(
     mut camera: Query<&mut Transform, With<FlyCam>>,
+) {
+    let mut camera = camera.single_mut();
+
+    camera.translation = Vec3::new(0.0, 12.5, 5.0);
+    camera.look_at(Vec3::new(0.0, 11.0, 2.5), Vec3::Y);
+}
+
+
+fn additional_camera_system(
+    mut camera: Query<&mut Transform, With<FlyCam>>,
     keyboard: Res<Input<KeyCode>>,
     time: Res<Time>
 ) {
@@ -56,7 +66,6 @@ fn additional_camera_setup(
 
     camera.translation -= Vec3::Y * time.delta_seconds() * speed;
 }
-
 
 pub fn run() { 
     App::new()
@@ -73,7 +82,9 @@ pub fn run() {
         // .add_plugin(WorldInspectorPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(ParticlePlugin)
+        .add_plugin(FluidSimulationPlugin)
         .add_startup_system(setup)
-        .add_system(additional_camera_setup)
+        .add_startup_system_to_stage(StartupStage::PostStartup, additional_camera_setup)
+        .add_system(additional_camera_system)
         .run();
 }

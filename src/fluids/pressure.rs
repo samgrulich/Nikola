@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, ops::DerefMut};
+use std::{borrow::BorrowMut, ops::DerefMut, time::Duration};
 use bevy::prelude::Vec3;
 use crate::{
     fluids::{
@@ -42,7 +42,7 @@ impl Default for FluidConfig {
 }
 
 pub struct Fluid {
-    particles: Vec<Rcc<SmoothedParticle>>,
+    pub particles: Vec<Rcc<SmoothedParticle>>,
     neighborhoods: Neighborhoods,
     particle_radius: f32,
 
@@ -60,14 +60,14 @@ pub struct Fluid {
 impl Fluid {
     pub fn from_particles(config: FluidConfig, raw_particles: Vec<(u32, Vec3)>, rest_density: f32, particle_radius: f32, delta_time: f32) -> Self {
         let mut particles: Vec<Rcc<SmoothedParticle>> = Vec::new();
-        let particle_mass: f32 = 4.0/3.0 * std::f32::consts::PI * particle_radius.powi(3);
+        let particle_mass: f32 = 4.0/3.0 * std::f32::consts::PI * particle_radius.powi(3) * rest_density;
 
         for raw_particle in raw_particles {
             let particle = SmoothedParticle::new(raw_particle.0, raw_particle.1, rest_density, particle_mass);
             particles.push(Rcc::new(particle));
         }
 
-        let mut neighborhoods = Neighborhoods::from(&mut particles);
+        let neighborhoods = Neighborhoods::from(&mut particles);
 
         Fluid { 
             particles, 
@@ -182,10 +182,12 @@ impl Fluid {
     }
 
     pub fn apply_cfl(&mut self) {
-        self.delta_time = self.cfl_parameter * self.particle_radius / self.get_max_velocity();
+        self.delta_time = self.cfl_parameter * self.particle_radius / self.get_max_velocity().max(1.0);
     }
 
     pub fn dfsph(&mut self) {
+        let time_start = std::time::Instant::now();
+        dbg!("starting dfsph");
         for particle in &mut self.particles {
             let particle: &mut SmoothedParticle = particle.borrow_mut();
             let neighbors = self.neighborhoods.get_neighbors(particle.position);
@@ -194,17 +196,22 @@ impl Fluid {
                 particle.dsph_factor = particle.compute_dsph_factor(&others);
             }
         }
+        dbg!("dfsph factors updated", time_start.elapsed().as_millis());
         // let pressure_value = 1.0 / delta_time * self.compute_density_derivate(others) * self.density.powi(2) / k_factor;
 
         // compute nonp acceleration
 
         // adapt delta time
         self.apply_cfl();
+        dbg!("cfl applied", time_start.elapsed().as_millis());
         
         // for particles i predict velocity v_predict = v_i + time_delta * a_i_nonp
         advect(&mut self.particles, self.delta_time);
+        dbg!(self.delta_time);
+        dbg!("advected", time_start.elapsed().as_millis());
         // correct density error using constant density solver
         self.correct_density(self.density_threshold);
+        dbg!("density corrected", time_start.elapsed().as_millis());
 
         // for particles i update position
         for particle in &mut self.particles {
@@ -212,6 +219,7 @@ impl Fluid {
 
             particle.position += particle.velocity_predict * self.delta_time;
         }
+        dbg!("updated positions", time_start.elapsed().as_millis());
 
         // update neighborhoods (refresh hash table)
         self.neighborhoods = Neighborhoods::from(&mut self.particles);
@@ -222,6 +230,7 @@ impl Fluid {
 
         // correct divergence using divergence solver 
         self.correct_divergence(self.divergence_threshold);
+        dbg!("div corrected", time_start.elapsed().as_millis());
         // update velocity
         for particle in &mut self.particles {
             particle.velocity = particle.velocity_predict;
