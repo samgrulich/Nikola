@@ -9,6 +9,9 @@ use crate::{
 };
 
 
+#[derive(Component)]
+pub struct FluidManager(Fluid);
+
 pub const FLUID_TIMESTEP: Duration = Duration::from_millis(300);
 
 pub fn move_particles(
@@ -18,7 +21,8 @@ pub fn move_particles(
 }
 
 fn setup(
-    mut particles: Query<(Entity, &Transform), With<ParticleType>>
+    mut commands: Commands,
+    mut particles: Query<(Entity, &Transform), With<ParticleType>>,
 ) {
     let fluid_config = FluidConfig::default();
     let mut raw_particles = Vec::new();
@@ -29,6 +33,8 @@ fn setup(
 
     let delta_time = FLUID_TIMESTEP.as_secs_f32();
     let fluid = Fluid::from_particles(fluid_config, raw_particles, REST_DENSITY, PARTICLE_RADIUS, delta_time);
+
+    commands.spawn(FluidManager(fluid));
     // todo: add fluid instance into the scene, fluid update, particle update
 }
 

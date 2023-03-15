@@ -1,18 +1,17 @@
 use std::{
-    rc::Rc,
-    cell::RefCell,
+    sync::{Arc, Mutex},
     ops::{Deref, DerefMut}, borrow::{BorrowMut, Borrow},
 };
 
 #[derive(Debug)]
 pub struct Rcc<T: Copy> {
-    data: Rc<RefCell<T>>,
+    data: Arc<Mutex<T>>,
 }
 
 impl<T: Copy> Rcc<T> {
     pub fn new(data: T) -> Self {
         Rcc {
-            data: Rc::new(RefCell::new(data)),
+            data: Arc::new(Mutex::new(data)),
         }
     }
 
@@ -33,33 +32,25 @@ impl<T: Copy> Deref for Rcc<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe {
-            self.data.as_ptr().as_ref()
-        }.unwrap() 
+        self.data.lock().unwrap().deref()
     }
 }
 
 impl<T: Copy> DerefMut for Rcc<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            (*self.data).as_ptr().as_mut()
-        }.unwrap()
+        self.data.lock().unwrap().deref_mut()
     }
 }
 
 impl<T: Copy> Borrow<T> for Rcc<T> {
     fn borrow(&self) -> &T {
-        unsafe {
-            self.data.as_ptr().as_ref()
-        }.unwrap()
+        self.data.lock().unwrap().deref()
     }
 }
 
 impl<T: Copy> BorrowMut<T> for Rcc<T> {
     fn borrow_mut(&mut self) -> &mut T {
-        unsafe {
-            (*self.data).as_ptr().as_mut()
-        }.unwrap()
+        self.data.lock().unwrap().deref_mut()
     }
 }
 
