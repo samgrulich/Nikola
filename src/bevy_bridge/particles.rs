@@ -1,9 +1,10 @@
 use bevy::prelude::*;
-
-pub const DIMENSIONS: (i32, i32, i32) = (4, 2, 4);
-pub const PARTICLE_RADIUS: f32 = 0.1;
-pub const PARTICLE_OFFSET: f32 = 0.1;
-pub const FLUID_OFFSET: f32 = 10.0;
+use crate::{
+    DIMENSIONS,
+    PARTICLE_RADIUS,
+    PARTICLE_OFFSET,
+    FLUID_OFFSET,
+};
 
 
 #[derive(Resource)]

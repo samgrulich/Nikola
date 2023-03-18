@@ -1,14 +1,9 @@
 use bevy::prelude::*;
+use bevy_flycam::FlyCam;
 // use iyes_loopless::prelude::*;
 
-use bevy_flycam::{PlayerPlugin, FlyCam};
-// use bevy_inspector_egui::quick::WorldInspectorPlugin;
-
-mod particles;
-pub use particles::*;
-
-mod simulation;
-pub use simulation::*;
+mod bevy_bridge;
+pub use bevy_bridge::*;
 
 mod fluids;
 pub use fluids::*;
@@ -20,7 +15,7 @@ pub use memory::*;
 pub const WIDTH: f32 = 1280f32;
 pub const HEIGHT: f32 = 720f32;
 
-fn setup(
+pub fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -42,7 +37,7 @@ fn setup(
     });
 }
 
-fn additional_camera_setup(
+pub fn additional_camera_setup(
     mut camera: Query<&mut Transform, With<FlyCam>>,
 ) {
     let mut camera = camera.single_mut();
@@ -52,7 +47,7 @@ fn additional_camera_setup(
 }
 
 
-fn additional_camera_system(
+pub fn additional_camera_system(
     mut camera: Query<&mut Transform, With<FlyCam>>,
     keyboard: Res<Input<KeyCode>>,
     time: Res<Time>
@@ -67,24 +62,3 @@ fn additional_camera_system(
     camera.translation -= Vec3::Y * time.delta_seconds() * speed;
 }
 
-pub fn run() { 
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor { 
-                width: WIDTH, 
-                height: HEIGHT, 
-                title: "Nikola - bevy".to_string(),
-                resizable: false,
-                ..default()
-            },
-            ..default()
-        }))
-        // .add_plugin(WorldInspectorPlugin)
-        .add_plugin(PlayerPlugin)
-        .add_plugin(ParticlePlugin)
-        .add_plugin(FluidSimulationPlugin)
-        .add_startup_system(setup)
-        .add_startup_system_to_stage(StartupStage::PostStartup, additional_camera_setup)
-        .add_system(additional_camera_system)
-        .run();
-}

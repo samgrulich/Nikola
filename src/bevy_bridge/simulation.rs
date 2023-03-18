@@ -1,18 +1,13 @@
-use bevy::{
-    prelude::*,
-    utils::Duration
-};
+use bevy::prelude::*;
 use iyes_loopless::prelude::AppLooplessFixedTimestepExt;
 
 use crate::{
-    ParticleType, Fluid, FluidConfig, REST_DENSITY, PARTICLE_RADIUS
+    ParticleType, Fluid, FluidConfig, REST_DENSITY, PARTICLE_RADIUS, FLUID_TIMESTEP
 };
 
 
 #[derive(Component)]
 pub struct FluidManager(Fluid);
-
-pub const FLUID_TIMESTEP: Duration = Duration::from_millis(600);
 
 pub fn move_particles(
     mut particles: Query<(Entity, &mut Transform), With<ParticleType>>,
