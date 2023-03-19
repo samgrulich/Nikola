@@ -1,5 +1,9 @@
+use core::time;
+use std::thread;
+
 use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
+use nikola::{setup_fluid_sim, step_fluid_sim};
 
 // use nikola::*;
 
@@ -18,15 +22,17 @@ fn main() {
         ..Default::default()
     };
 
+    let mut fluid = setup_fluid_sim(&instances);
+
     let mut state = pollster::block_on(
         State::new(
-                window, 
-                shader_source, 
-                vertices.as_slice(), 
-                indices, 
-                instances, 
-                camera
-            )
+            window, 
+            shader_source, 
+            vertices.as_slice(), 
+            indices, 
+            instances, 
+            camera
+        )
     );
 
     event_loop.run(move |event, _, control_flow| {
@@ -39,7 +45,12 @@ fn main() {
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 state.update();
-                crate::handle_rendering(&mut state, control_flow)
+                
+                step_fluid_sim(&mut state, &mut fluid);
+                state.update_instances();
+
+                fluid_renderer::handle_rendering(&mut state, control_flow);
+                thread::sleep(time::Duration::from_millis(1000));
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
@@ -50,10 +61,3 @@ fn main() {
         }
     });
 }
-    // App::new()
-    //     .add_plugin(ParticlePlugin)
-    //     .add_plugin(FluidSimulationPlugin)
-    //     .add_startup_system(setup)
-    //     .add_startup_system_to_stage(StartupStage::PostStartup, additional_camera_setup)
-    //     .add_system(additional_camera_system)
-    //     .run();

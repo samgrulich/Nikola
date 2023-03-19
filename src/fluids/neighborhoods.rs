@@ -57,6 +57,9 @@ impl TableMap {
     pub fn hash(position: Vec3A, table_size: i32) -> i32 {
         let index_vec = (position / fluids::SMOOTHING_LENGHT).as_ivec3();
 
+        if index_vec.as_vec3().length() > 100.0 {
+            dbg!(index_vec);
+        }
         ((index_vec.x * P1)
             ^ (index_vec.y * P2)
             ^ (index_vec.z * P3)

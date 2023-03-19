@@ -32,3 +32,15 @@ impl Fluid {
     }
 }
 
+impl Default for Fluid {
+    fn default() -> Self {
+        Fluid { 
+            table: TableMap::new(), 
+            cfl_parameter: 0.4, 
+            density_threshold: 0.125, 
+            divergence_threshold: 0.3, 
+            delta_time: 1.0 / 20.0
+        } 
+    }
+}
+
