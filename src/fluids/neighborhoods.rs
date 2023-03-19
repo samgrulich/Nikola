@@ -1,14 +1,11 @@
-use bevy::prelude::{Vec3, IVec3};
-
-use std::{
-    ops::{Deref, DerefMut},
-    collections::HashMap,
-};
+use std::collections::BTreeMap;
+use glam::{Vec3A, vec3a};
 
 use crate::{
     fluids::{self, SmoothedParticle},
-    memory::Rcc,
+    kernel
 };
+
 
 
 const P1: i32 = 73856093;
@@ -16,187 +13,209 @@ const P2: i32 = 19349663;
 const P3: i32 = 83492791;
 
 
-#[derive(Clone, Copy)]
-pub struct GVec3 {
-    x: f32, 
-    y: f32,
-    z: f32,
+pub struct Neighborhood {
+    pub neighbors: Vec<*const SmoothedParticle>,
+    pub gradients: Vec<Vec3A>,
 }
 
-impl GVec3 {
-    pub fn new_i32(x: i32, y: i32, z: i32) -> Self {
-        GVec3 { x: x as f32, y: y as f32, z: z as f32 }
-    }
+impl<'a> Neighborhood {
+    pub fn new(particle: &'a SmoothedParticle, neighbors: Vec<*const SmoothedParticle>) -> Self {
+        let gradients = Self::compute_gradients(particle, &neighbors);
 
-    pub fn from_f32(vector: Vec3) -> Self {
-        GVec3 { x: vector.x, y: vector.y, z: vector.z }
-    }
-
-    pub fn from_i32(vector: IVec3) -> Self {
-        GVec3 { x: vector.x as f32, y: vector.y as f32, z: vector.z as f32 }
-    }
-}
-
-impl GVec3 {
-    pub fn as_f32(&self) -> Vec3 {
-        Vec3::new(self.x, self.y, self.z)
-    }
-
-    pub fn as_i32(&self) -> IVec3 {
-        IVec3::new(self.x as i32, self.y as i32, self.z as i32)
-    }
-}
-
-pub fn hash_index(position_index: GVec3, table_size: i32) -> i32 {
-    let index_vec = position_index.as_i32();
-
-    ((index_vec.x * P1)
-        ^ (index_vec.y * P2)
-        ^ (index_vec.z * P3)
-    ) % table_size
-}
-
-pub fn hash_function(position: Vec3, table_size: i32) -> i32 {
-    let index_vec = GVec3::from_f32((position / fluids::SMOOTHING_LENGHT).floor());
-
-    hash_index(index_vec, table_size)
-}
-
-pub struct Neighborhoods {
-    entries: HashMap<i32, Vec<Rcc<SmoothedParticle>>>,
-    max_size: i32,
-}
-
-impl Neighborhoods {
-    pub fn new(max_size: i32) -> Self {
-        Neighborhoods {
-            entries: HashMap::new(),
-            max_size
+        Neighborhood { 
+            neighbors,
+            gradients
         }
     }
 
-    pub fn from(particles: &mut Vec<Rcc<SmoothedParticle>>) -> Self {
-        let mut neighborhoods = Neighborhoods {
-            entries: HashMap::new(),
-            max_size: particles.len() as i32,
-        };
-
-        particles.iter().for_each(|particle| {
-            let particle = particle.clone(); 
-            let result = neighborhoods.insert(particle);
-
-            if let Some(err) = result.err() {
-                dbg!(err);
+    pub fn compute_gradients(particle: &'a SmoothedParticle, neighbors: &Vec<*const SmoothedParticle>) -> Vec<Vec3A> {
+        neighbors.iter().map(|neighbor| {
+            unsafe {
+                kernel::smoothing_kernel_grad(particle.position, (**neighbor).position)
             }
-        });
-
-        neighborhoods
+        }).collect()
     }
 }
 
-impl Neighborhoods {
-    fn get_index(&self, position: Vec3) -> i32 {
-        hash_function(position, self.max_size)
+impl Neighborhood {
+    pub fn get_len(&self) -> f32 {
+        self.neighbors.len() as f32
+    }
+}
+
+
+pub struct TableMap {
+    pub particles: Vec<SmoothedParticle> ,
+
+    entries: BTreeMap<i32, Vec<*const SmoothedParticle>>,
+    ids: BTreeMap<u32, (i32, usize)>,
+
+    table_size: i32,
+}
+
+impl TableMap {
+    pub fn hash(position: Vec3A, table_size: i32) -> i32 {
+        let index_vec = (position / fluids::SMOOTHING_LENGHT).as_ivec3();
+
+        ((index_vec.x * P1)
+            ^ (index_vec.y * P2)
+            ^ (index_vec.z * P3)
+        ) % table_size
+    }
+}
+
+impl TableMap {
+    pub fn get_neighbors_by_id(&self, id: u32) -> (&[*const SmoothedParticle], &[*const SmoothedParticle]) {
+        let keys = self.ids.get(&id).unwrap();
+        let particles: &Vec<*const SmoothedParticle> = self.entries.get(&keys.0).unwrap();
+
+        particles.split_at(keys.1)
     }
 
-    fn get_entry(&self, position: Vec3) -> (Option<&Vec<Rcc<SmoothedParticle>>>, i32) {
-        let index = self.get_index(position);
-        let result = self.entries.get(&index);
-
-        (result, index)
-    }
-
-    fn get_entry_mut(&mut self, position: Vec3) -> (Option<&mut Vec<Rcc<SmoothedParticle>>>, i32) {
-        let index = self.get_index(position);
-        let result = self.entries.get_mut(&index);
-
-        (result, index)
+    pub fn get_particle_by_id(&self, id: u32) -> &SmoothedParticle {
+        self.particles.get(id as usize).unwrap()
     }
     
-    fn get_entry_by_index(&self, position_index: GVec3) -> (Option<&Vec<Rcc<SmoothedParticle>>>, i32) {
-        let index = hash_index(position_index, self.max_size);
-        let result = self.entries.get(&index);
-
-        (result, index)
+    pub fn get_particle_by_id_mut(&mut self, id: u32) -> &mut SmoothedParticle {
+        self.particles.get_mut(id as usize).unwrap()
     }
 
-    pub fn insert(&mut self, particle: Rcc<SmoothedParticle>) -> Result<(), &str> {
-        let particle = particle.clone();
-        let entries = self.get_entry_mut(particle.position);
+    pub fn get_by_position(&self, position: Vec3A) -> &[*const SmoothedParticle] {
+        let index = Self::hash(position, self.table_size);
 
-        if let (None, index) = entries {
-            let list = vec![particle];
-            self.entries.insert(index, list);
-
-            return Ok(());
-        }
-
-        if let (Some(particle_list), _) = entries {
-            let listed_particle = particle_list.iter().find(|&listed_particle| {listed_particle.id == particle.id});
-
-            if !listed_particle.is_none() {
-                return Err("Particle already inserted");
-            } 
-
-            particle_list.push(particle);
-        }
-
-        Ok(())
+        self.entries.get(&index).unwrap().as_slice()
     }
 
-    pub fn get(&self, position: Vec3) -> Option<&Vec<Rcc<SmoothedParticle>>> {
-        self.get_entry(position).0
-    }
-
-    pub fn get_neighbors(&self, position: Vec3) -> Option<Vec<Rcc<SmoothedParticle>>> {
-        // make a dependency to position inside the cell (instead checking 3x3x3, check only 2x2x2)
-        // possible perforamnce issues due to the copy() calls
+    pub fn get_neighborhood_2d(&self, id: u32) -> Neighborhood {
+        let particle = self.get_particle_by_id(id);
         
-        let mut result = match self.get_entry(position).0 {
-            Some(list) => list.clone(),
-            None => return None
+        let pos_x = particle.position.x as i32;
+        let pos_y = particle.position.y as i32;
+        
+        let mut neighbors: Vec<*const SmoothedParticle> = Vec::new();
+        for y in pos_y-1..=pos_y+1 {
+            if pos_y == y {
+                continue;
+            }
+
+            for x in pos_x-1..=pos_x+1 {
+                if pos_x == x {
+                    continue;
+                }
+
+                neighbors.extend_from_slice(
+                    self.get_by_position(vec3a(x as f32, y as f32, 0.0))
+                );
+            }
+        }
+
+        let particle_neighbors = self.get_neighbors_by_id(id);
+        neighbors.extend_from_slice(particle_neighbors.0);
+        neighbors.extend_from_slice(particle_neighbors.1);
+
+        Neighborhood::new(particle, neighbors)
+    }
+
+    pub fn insert(&mut self, particle: SmoothedParticle) {
+        let index = Self::hash(particle.position, self.table_size);
+
+        if self.entries.contains_key(&index) {
+            let vector = self.entries
+                .get_mut(&index).unwrap();
+            
+            self.ids.insert(particle.id, (index, vector.len()));
+
+            vector.push(&particle);
+        }
+        else {
+            self.ids.insert(particle.id, (index, 0));
+
+            self.entries
+                .insert(index, vec![&particle]);
+        }
+
+        self.particles.push(particle);
+    }
+
+    pub fn reinsert(&mut self, particle: *const SmoothedParticle) {
+        let particle = unsafe { &*particle };
+        let index = Self::hash(particle.position, self.table_size);
+
+        if self.entries.contains_key(&index) {
+            let vector = self.entries
+                .get_mut(&index).unwrap();
+            
+            self.ids.insert(particle.id, (index, vector.len()));
+
+            vector.push(&*particle);
+        }
+        else {
+            self.ids.insert(particle.id, (index, 0));
+
+            self.entries
+                .insert(index, vec![&*particle]);
+        }
+    }
+}
+
+impl TableMap {
+    pub fn update_particle_factors(&mut self) {
+        let mut factors = vec![0.0; self.particles.len()];
+
+        for (i, particle) in self.particles.iter().enumerate() {
+            let neihgborhood = self.get_neighborhood_2d(particle.id);
+
+            factors[i] = particle.compute_dsph_factor(&neihgborhood);
         };
 
-        // remove original particle
-        let mut current_index = None;
-        for (index, particle) in result.iter().enumerate() {
-            if particle.position == position {
-                current_index = Some(index);
-            }
+        for (factor, particle) in factors.iter().zip(self.particles.iter_mut()) {
+            particle.dsph_factor = *factor;
         }
+    }
+}
+
+impl TableMap {
+    pub fn new() -> Self {
+        TableMap { 
+            particles: Vec::new(), 
+            entries: BTreeMap::new(), 
+            ids: BTreeMap::new(), 
+            table_size: 0, 
+        }
+    }
+
+    pub fn from_particles(particles: Vec<SmoothedParticle>) -> Self {
+        let mut table = Self::new();
+        table.table_size = particles.len() as _;
         
-        if current_index.is_some() {
-            result.remove(current_index.unwrap());
+        for particle in particles {
+            table.insert(particle);
         }
 
-        let pos_index = (position / fluids::SMOOTHING_LENGHT).floor();
-        let pos_index = IVec3::new(pos_index.x as i32, pos_index.y as i32, pos_index.z as i32);
+        table.update_particle_factors();
+       
+        table
+    }
 
-        for z in pos_index.z-1..=pos_index.z+1 {
-            for y in pos_index.y-1..=pos_index.y+1 {
-                for x in pos_index.x-1..=pos_index.x+1 {
-                    match self.get_entry_by_index(GVec3::new_i32(x, y, z)).0 {
-                        Some(list) => result.append(&mut list.clone()), 
-                        _ => ()
-                    }
-                }
+    pub fn update(&mut self) {
+        let mut particles_to_insert: Vec<*const SmoothedParticle> = Vec::new();
+
+        for particle in self.particles.iter() {
+            let new_index = Self::hash(particle.position, self.table_size);
+
+            let (old_index, rank) = self.ids.get(&particle.id).unwrap();
+            
+            if new_index != *old_index {
+                self.entries
+                    .get_mut(old_index).unwrap()
+                    .remove(*rank);
+
+                particles_to_insert.push(&*particle);
             }
         }
 
-        Some(result)
-    }
-}
-
-impl Deref for Neighborhoods {
-    type Target = HashMap<i32, Vec<Rcc<SmoothedParticle>>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.entries 
-    }
-}
-
-impl DerefMut for Neighborhoods {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.entries 
+        for particle in particles_to_insert {
+            self.reinsert(particle);
+        }
     }
 }

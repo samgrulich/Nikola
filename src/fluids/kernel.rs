@@ -1,8 +1,12 @@
-use bevy::prelude::*;
-
 use crate::fluids;
+use glam::{Vec3A, vec3a};
 
-const DIMENSIONS: i32 = 2;
+
+const H: f32 = fluids::SMOOTHING_LENGHT;
+const H_POW_D: f32 = H * H;
+const FRAC_H_D: f32 = 1.0 / H_POW_D;
+const FRAC_3_2PI: f32 = 3.0 / 2.0 * std::f32::consts::FRAC_1_PI;
+
 
 fn cubic_spline(distance: f32) -> f32 {
     let q = if distance < 1.0 {
@@ -15,30 +19,26 @@ fn cubic_spline(distance: f32) -> f32 {
         0.0
     };
 
-    3.0 / (2.0 * std::f32::consts::PI) * q
+    FRAC_3_2PI * q
 }
 
-fn smoothing_kernel_component(x_i: f32, x_j: f32, h: Option<f32>) -> f32 {
-    let h = h.unwrap_or(fluids::SMOOTHING_LENGHT);
-    let distance = (x_i - x_j).abs() / h;
+pub fn smoothing_kernel(x_i: Vec3A, x_j: Vec3A) -> f32 {
+    let distance = x_i.distance(x_j) / H;
 
-    1.0/h.powi(DIMENSIONS) * cubic_spline(distance)
+    FRAC_H_D * cubic_spline(distance)
 }
 
-pub fn smoothing_kernel(x_i: Vec3, x_j: Vec3, h: Option<f32>) -> f32 {
-    let h = h.unwrap_or(fluids::SMOOTHING_LENGHT);
-    let distance = x_i.distance(x_j) / h;
+fn smoothing_kernel_component(x_i: f32, x_j: f32) -> f32 {
+    let distance = (x_i - x_j).abs() / H;
 
-    1.0/h.powi(DIMENSIONS) * cubic_spline(distance)
+    FRAC_H_D * cubic_spline(distance)
 }
 
-pub fn smoothing_kernel_grad(x_i: Vec3, x_j: Vec3, h: Option<f32>) -> Vec3 {
-    let h = h.unwrap_or(fluids::SMOOTHING_LENGHT);
+pub fn smoothing_kernel_grad(x_i: Vec3A, x_j: Vec3A) -> Vec3A {
+    let x = smoothing_kernel_component(x_i.x, x_j.x);
+    let y = smoothing_kernel_component(x_i.y, x_j.y);
+    let z = smoothing_kernel_component(x_i.z, x_j.z);
 
-    let x = smoothing_kernel_component(x_i.x, x_j.x, Some(h));
-    let y = smoothing_kernel_component(x_i.y, x_j.y, Some(h));
-    let z = smoothing_kernel_component(x_i.z, x_j.z, Some(h));
-
-    1.0/h.powi(DIMENSIONS) * Vec3::new(x, y, z)
+    FRAC_H_D * vec3a(x, y, z)
 }
 
