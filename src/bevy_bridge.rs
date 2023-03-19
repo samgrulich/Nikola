@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-pub mod particles;
-pub mod simulation;
-
-pub use particles::*;
-pub use simulation::*;
+// pub mod particles;
+// pub mod simulation;
+//
+// pub use particles::*;
+// pub use simulation::*;
 
 pub const DIMENSIONS: (i32, i32, i32) = (4, 2, 4);
 pub const PARTICLE_RADIUS: f32 = 0.1;

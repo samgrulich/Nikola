@@ -1,28 +1,59 @@
-use bevy::prelude::*;
-use bevy_flycam::PlayerPlugin;
-// use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use fluid_renderer::*;
+use fluid_renderer::winit::event::*;
 
-use nikola::*;
+// use nikola::*;
+
 
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            window: WindowDescriptor { 
-                width: WIDTH, 
-                height: HEIGHT, 
-                title: "Nikola - bevy".to_string(),
-                resizable: false,
-                ..default()
-            },
-            ..default()
-        }))
-        // .add_plugin(WorldInspectorPlugin)
-        .add_plugin(PlayerPlugin)
-        .add_plugin(ParticlePlugin)
-        .add_plugin(FluidSimulationPlugin)
-        .add_startup_system(setup)
-        .add_startup_system_to_stage(StartupStage::PostStartup, additional_camera_setup)
-        .add_system(additional_camera_system)
-        .run();
+    let InitOutput{event_loop, window, aspect_ratio} = init(); 
+
+    let shader_source = fluid_renderer::wgpu::ShaderSource::Wgsl(std::fs::read_to_string("libs/fluid-renderer/src/shader.wgsl").unwrap().into());
+    let vertices = Quad.scale(fluid_renderer::PARTICLE_SIZE);
+    let indices = Quad::INDICES;
+    let instances = create_grid(fluid_renderer::GRID_DIMENSIONS, (2, 2), (-1.0, -1.0, 0.0));
+    let camera = Camera {
+        aspect: aspect_ratio,
+        fovy: 45.0,
+        ..Default::default()
+    };
+
+    let mut state = pollster::block_on(
+        State::new(
+                window, 
+                shader_source, 
+                vertices.as_slice(), 
+                indices, 
+                instances, 
+                camera
+            )
+    );
+
+    event_loop.run(move |event, _, control_flow| {
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == state.window().id() => {
+                crate::hadnle_windowing(&mut state, event, control_flow)
+            }
+            Event::RedrawRequested(window_id) if window_id == state.window().id() => {
+                state.update();
+                crate::handle_rendering(&mut state, control_flow)
+            }
+            Event::MainEventsCleared => {
+                // RedrawRequested will only trigger once, unless we manually
+                // request it.
+                state.window().request_redraw();
+            }
+            _ => {}
+        }
+    });
 }
+    // App::new()
+    //     .add_plugin(ParticlePlugin)
+    //     .add_plugin(FluidSimulationPlugin)
+    //     .add_startup_system(setup)
+    //     .add_startup_system_to_stage(StartupStage::PostStartup, additional_camera_setup)
+    //     .add_system(additional_camera_system)
+    //     .run();
