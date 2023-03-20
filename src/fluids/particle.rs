@@ -3,7 +3,7 @@ use glam::Vec3A;
 use crate::{fluids, Neighborhood};
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SmoothedParticle {
     pub id: u32,
     pub position: Vec3A,
@@ -45,45 +45,7 @@ impl SmoothedParticle {
 }
 
 impl SmoothedParticle {
-    // pub fn interpolate(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> f32 {
-    //     let mut qtity_i: f32 = 0.0;
-    //
-    //     for other in others.iter() {
-    //         if let Some(qtity_j) = other.get_f32(field) {
-    //             qtity_i += other.MASS / other.density * qtity_j * kernel::smoothing_kernel(self.position, other.position, None);
-    //         }
-    //     }
-    //
-    //     qtity_i
-    // }
-    //
-    // pub fn interpolate_grad(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
-    //     let mut qtity = Vec3::ZERO;
-    //     let qtity_i = self.get_vec3(field).unwrap();
-    //     
-    //     for other in others.iter() {
-    //         if let Some(qtity_j) = other.get_vec3(field) {
-    //             qtity += other.MASS * ( qtity_i / self.density.powi(2) + qtity_j / other.density.powi(2)) * kernel::smoothing_kernel_grad(self.position, other.position, None);
-    //         }
-    //     }
-    //
-    //     self.density * qtity
-    // }
-    // 
-    // pub fn interpolate_grad_f32(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
-    //     let mut qtity = Vec3::ZERO;
-    //     let qtity_i = self.get_f32(field).unwrap();
-    //     
-    //     for other in others.iter() {
-    //         if let Some(qtity_j) = other.get_f32(field) {
-    //             qtity += other.MASS * ( qtity_i / self.density.powi(2) + qtity_j / other.density.powi(2)) * kernel::smoothing_kernel_grad(self.position, other.position, None);
-    //         }
-    //     }
-    //
-    //     self.density * qtity
-    // }
-    //
-    pub fn interpolate_div_vf(&self, neighborhood: &Neighborhood) -> f32 {
+   pub fn interpolate_div_vf(&self, neighborhood: &Neighborhood) -> f32 {
         let mut qtity: f32 = 0.0;
         let mass_sum = neighborhood.get_len() * SmoothedParticle::MASS;
         
@@ -95,35 +57,6 @@ impl SmoothedParticle {
 
         -1.0/self.density * qtity * mass_sum
     }
-    //
-    // pub fn interpolate_curl(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
-    //     let mut qtity: Vec3 = Vec3::ZERO;
-    //     let qtity_i = self.get_vec3(field).unwrap();
-    //     
-    //     for other in others.iter() {
-    //         if let Some(qtity_j) = other.get_vec3(field) {
-    //             qtity += other.mass * (qtity_i - qtity_j).cross(kernel::smoothing_kernel_grad(self.position, other.position, None)); 
-    //         }
-    //     }
-    //
-    //     1.0/self.density * qtity
-    // }
-    // 
-    // // todo: implement laplacian for scalars
-    // pub fn interpolate_lap(&self, others: &Vec<Rcc<SmoothedParticle>>, field: &str) -> Vec3 {
-    //     let mut qtity = Vec3::ZERO;
-    //     let qtity_i = self.get_vec3(field).unwrap();
-    //     
-    //     for other in others.iter() {
-    //         let x_ij = self.position - other.position;
-    //
-    //         if let Some(qtity_j) = self.get_vec3(field) {
-    //             qtity += other.mass / other.density * (qtity_i - qtity_j) * (x_ij.dot(kernel::smoothing_kernel_grad(self.position, other.position, None)) / (x_ij.dot(x_ij) + 0.01 * fluids::SMOOTHING_LENGHT.powi(2))); 
-    //         }
-    //     }
-    //
-    //     2.0 * qtity 
-    // }
 }
 
 impl SmoothedParticle {

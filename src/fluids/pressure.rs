@@ -1,6 +1,3 @@
-use core::time;
-use std::thread;
-
 use glam::Vec3A;
 use crate::{
     fluids::{
@@ -121,10 +118,12 @@ pub fn dfsph(solver: &mut Fluid) {
         solver.table.get_neighborhood_2d(particle.id) 
     }).collect();
 
+    let _x = &neighborhoods[0];
     // correct density error using constant density solver
     correct_density(solver, &neighborhoods);
 
     // for particles i update position
+    let _x = &solver.table.particles[0];
     for particle in solver.table.particles.iter_mut() {
         particle.position += particle.velocity_future * solver.delta_time;
     }
