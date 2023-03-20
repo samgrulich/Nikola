@@ -153,21 +153,13 @@ impl TableMap {
         self.update_entry_pointers();
     }
 
-    pub fn reinsert(&mut self, particle: *const SmoothedParticle) {
-        let particle = unsafe { &*particle };
-        let index = Self::hash(particle.position, self.table_size);
-
+    pub fn reinsert(&mut self, particle: *const SmoothedParticle, index: u32) {
         if self.entries.contains_key(&index) {
-            let vector = self.entries
-                .get_mut(&index).unwrap();
-            
-            self.ids.insert(particle.id, (index, vector.len()));
-
-            vector.push(&*particle);
-            vector.rotate_right(1);
+            self.entries.get_mut(&index).unwrap().push(particle);
         }
-
-        panic!("New particles cannot be inserted");
+        else {
+            self.entries.insert(index, vec![particle]);
+        }
     }
 }
 
@@ -204,6 +196,18 @@ impl TableMap {
         }
     }
 
+    fn update_ranks(&mut self) {
+        for (id, val) in self.ids.iter_mut() {
+            let index = Self::hash(self.particles[*id as usize].position, self.table_size);
+            let rank = self.entries
+                .get(&index).unwrap()
+                .iter()
+                .position(|particle| unsafe{&**particle}.id == *id).unwrap();
+
+            *val = (index, rank);
+        }
+    }
+
     pub fn update_refs(&mut self) {
         self.update_entry_pointers();
         self.update_ids();
@@ -235,11 +239,10 @@ impl TableMap {
     }
 
     pub fn update(&mut self) {
-        let mut particles_to_insert: Vec<*const SmoothedParticle> = Vec::new();
+        let mut particles_to_insert: Vec<(*const SmoothedParticle, u32)> = Vec::new();
 
-        for particle in self.particles.iter() {
+        for particle in self.particles.iter().rev() {
             let new_index = Self::hash(particle.position, self.table_size);
-
             let (old_index, rank) = self.ids.get(&particle.id).unwrap();
             
             if new_index != *old_index {
@@ -247,14 +250,15 @@ impl TableMap {
                     .get_mut(old_index).unwrap()
                     .remove(*rank);
 
-                particles_to_insert.push(&*particle);
+                particles_to_insert.push((&*particle, new_index));
             }
         }
 
-        for particle in particles_to_insert {
-            self.reinsert(particle);
+        for (particle, index) in particles_to_insert.iter().rev() {
+            self.reinsert(*particle, *index);
         }
 
+        self.update_ranks();
         self.update_particle_factors();
     }
 }

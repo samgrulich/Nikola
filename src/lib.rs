@@ -10,11 +10,11 @@ pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
 
     let fluid = Fluid {
         table: TableMap::from_particles(particles),
-        delta_time: 0.0001,
+        cfl_parameter: 0.02,
         ..Default::default()
     };
     
-    dbg!("Initialization", &fluid.table.particles, "Initialization stop");
+    // dbg!("Initialization", &fluid.table.particles, "Initialization stop");
 
     fluid
 }

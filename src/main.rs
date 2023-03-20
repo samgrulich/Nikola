@@ -50,7 +50,7 @@ fn main() {
                 state.update_instances();
 
                 fluid_renderer::handle_rendering(&mut state, control_flow);
-                thread::sleep(time::Duration::from_millis(1000));
+                // thread::sleep(time::Duration::from_millis(1000));
             }
             Event::MainEventsCleared => {
                 // RedrawRequested will only trigger once, unless we manually
