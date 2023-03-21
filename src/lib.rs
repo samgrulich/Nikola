@@ -10,21 +10,21 @@ pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
     ).ceil() as u32
 }
 
-pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
-    let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
-        SmoothedParticle::new(i as u32, instance.position.into())
-    }).collect();
+fn instances_to_particles<T: Particle>(instances: &Vec<Instance>) -> Vec<T> {
+    instances.iter().enumerate().map(|(i, instance)| {
+        Particle::new(i as u32, instance.position.into())
+    }).collect()
+}
 
-    let fluid = Fluid {
-        table: TableMap::from_particles(particles),
-        cfl_parameter: 0.02,
-        ..Default::default()
-    };
+pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
+    let particles: Vec<FluidParticle> = instances_to_particles(instances);
+
+    let fluid = Fluid::from_particles(particles, None, None, None);
 
     fluid
 }
 
-pub fn setup_boundary() -> Vec<Instance> {
+pub fn setup_boundary() -> (Vec<Instance>, TableMap<BoundaryParticle>) {
     let dimensions = (4, 3);
     let offset = (
         -2.0,
@@ -33,15 +33,16 @@ pub fn setup_boundary() -> Vec<Instance> {
     );
 
     let boundary_instances = create_dense_rect(dimensions, offset, Some(fluids::PARTICLE_RADIUS), None);
+    let boundary_particles = instances_to_particles(&boundary_instances);
+    let boundary_table = TableMap::from_particles(boundary_particles);
 
-    boundary_instances
+    (boundary_instances, boundary_table)
 }
 
-pub fn step_fluid_sim(state: &mut State, fluid: &mut Fluid) {
-    dfsph(fluid);
+pub fn step_fluid_sim(state: &mut State, fluid: &mut Fluid, boundary_table: &TableMap<BoundaryParticle>) {
+    dfsph(fluid, boundary_table);
 
-    fluid.table.particles
-        .iter()
+    fluid.particles()
         .zip(state.instances.iter_mut())
         .for_each(
             |(particle, instance)| {

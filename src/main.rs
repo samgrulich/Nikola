@@ -20,7 +20,7 @@ fn main() {
     };
 
     let mut fluid = setup_fluid_sim(&fluid_instances);
-    let mut boundary_instances = setup_boundary();
+    let (mut boundary_instances, boundary) = setup_boundary();
 
     let mut instances = fluid_instances;
     instances.append(&mut boundary_instances);
@@ -47,7 +47,7 @@ fn main() {
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 state.update();
                 
-                step_fluid_sim(&mut state, &mut fluid);
+                step_fluid_sim(&mut state, &mut fluid, &boundary);
                 state.update_instances();
 
                 fluid_renderer::handle_rendering(&mut state, control_flow);

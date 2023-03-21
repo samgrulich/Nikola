@@ -3,8 +3,8 @@ use glam::{Vec3A, vec3a};
 use nohash_hasher::BuildNoHashHasher;
 
 use crate::{
-    fluids::{self, SmoothedParticle},
-    kernel
+    fluids::{self, FluidParticle},
+    kernel, Particle 
 };
 
 
@@ -16,14 +16,14 @@ const P3: i32 = 83492791;
 const CELL_SIZE: f32 = fluids::SMOOTHING_LENGHT;
 
 
-pub struct Neighborhood {
-    pub neighbors: Vec<*const SmoothedParticle>,
+pub struct Neighborhood<T: Particle> {
+    pub neighbors: Vec<*const T>,
     pub gradients: Vec<Vec3A>,
 }
 
-impl<'a> Neighborhood {
-    pub fn new(particle: &'a SmoothedParticle, neighbors: Vec<*const SmoothedParticle>) -> Self {
-        let gradients = Self::compute_gradients(particle, &neighbors);
+impl<T: Particle> Neighborhood<T> {
+    pub fn new(position: Vec3A, neighbors: Vec<*const T>) -> Self {
+        let gradients = Self::compute_gradients(position, &neighbors);
 
         Neighborhood { 
             neighbors,
@@ -31,16 +31,14 @@ impl<'a> Neighborhood {
         }
     }
 
-    pub fn compute_gradients(particle: &'a SmoothedParticle, neighbors: &Vec<*const SmoothedParticle>) -> Vec<Vec3A> {
+    pub fn compute_gradients(position: Vec3A, neighbors: &Vec<*const T>) -> Vec<Vec3A> {
         neighbors.iter().map(|neighbor| {
             unsafe {
-                kernel::smoothing_kernel_grad(particle.position, (**neighbor).position)
+                kernel::smoothing_kernel_grad(position, (**neighbor).position())
             }
         }).collect()
     }
-}
 
-impl Neighborhood {
     pub fn get_len(&self) -> f32 {
         self.neighbors.len() as f32
     }
@@ -49,14 +47,14 @@ impl Neighborhood {
 
 
 #[derive(Debug, PartialEq)]
-pub struct TableMap {
-    pub particles: Vec<SmoothedParticle> ,
+pub struct TableMap<T: Particle> {
+    pub particles: Vec<T>,
 
-    entries: HashMap<u32, HashMap<u32, *const SmoothedParticle>, BuildNoHashHasher<u32>>,
+    entries: HashMap<u32, HashMap<u32, *const T>, BuildNoHashHasher<u32>>,
     ids: HashMap<u32, u32, BuildNoHashHasher<u32>>
 }
 
-impl TableMap {
+impl<T: Particle> TableMap<T> {
     pub fn hash(position: Vec3A) -> u32 {
         let index_vec = (position / CELL_SIZE).floor().as_ivec3();
 
@@ -68,26 +66,26 @@ impl TableMap {
     } 
 }
 
-impl TableMap {
-    pub fn get_neighbors(&self, id: u32) -> Vec<*const SmoothedParticle> {
+impl<T: Particle> TableMap<T> {
+    pub fn get_neighbors(&self, id: u32) -> Vec<*const T> {
         let index = self.ids.get(&id).unwrap();
         let neighborhood = self.entries.get(&index).unwrap();
-        let mut particles = neighborhood.values().copied().collect::<Vec<*const SmoothedParticle>>();
+        let mut particles = neighborhood.values().copied().collect::<Vec<*const T>>();
         let particle_idx = neighborhood.keys().position(|key| *key == id).unwrap();
 
         particles.remove(particle_idx);
         particles
     }
 
-    pub fn get_particle_by_id(&self, id: u32) -> &SmoothedParticle {
+    pub fn get_particle_by_id(&self, id: u32) -> &T {
         self.particles.get(id as usize).unwrap()
     }
     
-    pub fn get_particle_by_id_mut(&mut self, id: u32) -> &mut SmoothedParticle {
+    pub fn get_particle_by_id_mut(&mut self, id: u32) -> &mut T {
         self.particles.get_mut(id as usize).unwrap()
     }
 
-    pub fn get_by_position(&self, position: Vec3A) -> Option<Vec<*const SmoothedParticle>> {
+    pub fn get_by_position(&self, position: Vec3A) -> Option<Vec<*const T>> {
         let index = Self::hash(position);
         let neighborhood = self.entries.get(&index);
 
@@ -97,13 +95,13 @@ impl TableMap {
         }
     }
 
-    pub fn get_neighborhood_2d(&self, id: u32) -> Neighborhood {
+    pub fn get_neighborhood_2d(&self, id: u32) -> Neighborhood<T> {
         let particle = self.get_particle_by_id(id);
         
-        let pos_x = particle.position.x;
-        let pos_y = particle.position.y;
+        let pos_x = particle.position().x;
+        let pos_y = particle.position().y;
         
-        let mut neighbors: Vec<*const SmoothedParticle> = Vec::new();
+        let mut neighbors: Vec<*const T> = Vec::new();
         for y in -1..=1 {
             for x in -1..=1 {
                 if x | y == 0 {
@@ -122,10 +120,29 @@ impl TableMap {
             }
         }
 
-        Neighborhood::new(particle, neighbors)
+        Neighborhood::new(particle.position(), neighbors)
+    }
+    
+    pub fn get_neighborhood_by_position_2d(&self, position: Vec3A) -> Neighborhood<T> {
+        let pos_x = position.x;
+        let pos_y = position.y;
+        
+        let mut neighbors: Vec<*const T> = Vec::new();
+        for y in -1..=1 {
+            for x in -1..=1 {
+                let x = (pos_x + x as f32 * CELL_SIZE) * 1.05;
+                let y = (pos_y + y as f32 * CELL_SIZE) * 1.05;
+
+                if let Some(mut particles) = self.get_by_position(vec3a(x, y, 0.0)) {
+                    neighbors.append(&mut particles);
+                }
+            }
+        }
+
+        Neighborhood::new(position, neighbors)
     }
 
-    pub fn insert(&mut self, index: u32, particle_id: u32, particle: *const SmoothedParticle) {
+    fn insert(&mut self, index: u32, particle_id: u32, particle: *const T) {
         if !self.entries.contains_key(&index) {
             self.entries.insert(index, HashMap::new());
         }
@@ -134,14 +151,14 @@ impl TableMap {
         self.ids.insert(particle_id, index);
     }
     
-    pub fn insert_particles(&mut self, particles: Vec<SmoothedParticle>) {
+    pub fn insert_particles(&mut self, particles: Vec<T>) {
         self.particles = particles;
         let entries = self.particles
             .iter()
             .map(|particle| {
-                let index = Self::hash(particle.position);
-                (index, particle.id, &(*particle) as *const SmoothedParticle)
-            }).collect::<Vec<(u32, u32, *const SmoothedParticle)>>();
+                let index = Self::hash(particle.position());
+                (index, particle.id(), &(*particle) as *const T)
+            }).collect::<Vec<(u32, u32, *const T)>>();
 
         for (index, id, particle) in entries {
             self.insert(index, id, particle);
@@ -149,12 +166,51 @@ impl TableMap {
     }
 }
 
-impl TableMap {
-    fn update_particle_factors(&mut self) {
+impl<T: Particle> TableMap<T> {
+    pub fn new() -> Self {
+        TableMap { 
+            particles: Vec::new(), 
+            entries: HashMap::with_hasher(BuildNoHashHasher::default()), 
+            ids: HashMap::with_hasher(BuildNoHashHasher::default()),
+        }
+    }
+
+    pub fn from_particles(particles: Vec<T>) -> Self {
+        let mut table = Self::new();
+        
+        table.insert_particles(particles);
+       
+        table
+    }
+
+    pub fn update(&mut self) { 
+        let mut particles_to_insert: Vec<(u32, u32, *const T)> = Vec::new();
+
+        for particle in self.particles.iter() {
+            let new_index = Self::hash(particle.position());
+            let old_index = self.ids.get(&particle.id()).unwrap();
+            
+            if new_index != *old_index {
+                self.entries
+                    .get_mut(old_index).unwrap()
+                    .remove(&particle.id());
+
+                particles_to_insert.push((new_index, particle.id(), &*particle));
+            }
+        }
+
+        for (index, id, particle) in particles_to_insert {
+            self.insert(index, id, particle);
+        }
+    }
+}
+
+impl TableMap<FluidParticle> {
+    pub fn update_particle_factors(&mut self) {
         let mut factors = vec![0.0; self.particles.len()];
 
         for (i, particle) in self.particles.iter().enumerate() {
-            if particle.id == i as u32 {
+            if particle.id() == i as u32 {
                 continue;
             }
 
@@ -169,67 +225,26 @@ impl TableMap {
     }
 }
 
-impl TableMap {
-    pub fn new() -> Self {
-        TableMap { 
-            particles: Vec::new(), 
-            entries: HashMap::with_hasher(BuildNoHashHasher::default()), 
-            ids: HashMap::with_hasher(BuildNoHashHasher::default()),
-        }
-    }
-
-    pub fn from_particles(particles: Vec<SmoothedParticle>) -> Self {
-        let mut table = Self::new();
-        
-        table.insert_particles(particles);
-        table.update_particle_factors();
-       
-        table
-    }
-
-    pub fn update(&mut self) {
-        let mut particles_to_insert: Vec<(u32, u32, *const SmoothedParticle)> = Vec::new();
-
-        for particle in self.particles.iter() {
-            let new_index = Self::hash(particle.position);
-            let old_index = self.ids.get(&particle.id).unwrap();
-            
-            if new_index != *old_index {
-                self.entries
-                    .get_mut(old_index).unwrap()
-                    .remove(&particle.id);
-
-                particles_to_insert.push((new_index, particle.id, &*particle));
-            }
-        }
-
-        for (index, id, particle) in particles_to_insert {
-            self.insert(index, id, particle);
-        }
-
-        self.update_particle_factors();
-    }
-}
 
 
 #[cfg(test)]
 mod tests {
     use glam::{Vec3A, vec3a};
-    use crate::{TableMap, SMOOTHING_LENGHT};
+    use crate::{TableMap, SMOOTHING_LENGHT, Particle};
 
-    use super::SmoothedParticle;
+    use super::FluidParticle;
 
-    fn table_1_setup() -> (TableMap, SmoothedParticle) {
-        let particle = SmoothedParticle::new(0, vec3a(1.0, 1.0, 0.0));
+    fn table_1_setup() -> (TableMap<FluidParticle>, FluidParticle) {
+        let particle = FluidParticle::new(0, vec3a(1.0, 1.0, 0.0));
         (TableMap::from_particles(vec![particle.clone()]), particle)
     }
 
-    fn table_9_setup() -> (TableMap, Vec<SmoothedParticle>) {
+    fn table_9_setup() -> (TableMap<FluidParticle>, Vec<FluidParticle>) {
         let particles = (0..3).flat_map(|y| {
             (0..3).map(move |x| {
-                SmoothedParticle::new(y * 3 + x, vec3a(x as f32, y as f32, 0.0))
+                FluidParticle::new(y * 3 + x, vec3a(x as f32, y as f32, 0.0))
             })
-        }).collect::<Vec<SmoothedParticle>>();
+        }).collect::<Vec<FluidParticle>>();
 
         (TableMap::from_particles(particles.clone()), particles)
     }
@@ -239,9 +254,9 @@ mod tests {
     #[test]
     fn test_neighbors() {
         let particles = vec![
-            SmoothedParticle::new(0, Vec3A::ZERO), 
-            SmoothedParticle::new(1, Vec3A::X * SMOOTHING_LENGHT), 
-            SmoothedParticle::new(2, Vec3A::X * 2.0 * SMOOTHING_LENGHT), 
+            FluidParticle::new(0, Vec3A::ZERO), 
+            FluidParticle::new(1, Vec3A::X * SMOOTHING_LENGHT), 
+            FluidParticle::new(2, Vec3A::X * 2.0 * SMOOTHING_LENGHT), 
         ];
 
         let table = TableMap::from_particles(particles.clone());
@@ -290,12 +305,8 @@ mod tests {
     #[test]
     fn test_table_get() {
         let (table, particles) = table_9_setup(); 
-
-        // let particle = table.get_by_position(vec3a(1.0, 0.0, 0.0));
-        // dbg!(unsafe {(*(*particle)[0]).clone()});
-        // assert!(unsafe {(*(*particle)[0]).clone()} == *&particles[0]);
-
         let particle = table.get_particle_by_id(1);
+
         assert!(*particle == *&particles[1]);
     }
 }

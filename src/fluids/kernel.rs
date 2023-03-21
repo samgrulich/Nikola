@@ -3,7 +3,7 @@ use glam::{Vec3A, vec3a};
 
 
 const H: f32 = fluids::SMOOTHING_LENGHT;
-const H_POW_D: f32 = H * H;
+const H_POW_D: f32 = H * H * H; // should this be 2?
 const FRAC_H_D: f32 = 1.0 / H_POW_D;
 const FRAC_3_2PI: f32 = 3.0 / 2.0 * std::f32::consts::FRAC_1_PI;
 

@@ -1,7 +1,9 @@
-use crate::{TableMap, SmoothedParticle};
+use std::slice::{Iter, IterMut};
+
+use crate::{TableMap, FluidParticle, Particle, Neighborhood};
 
 pub struct Fluid {
-    pub table: TableMap,
+    table: TableMap<FluidParticle>,
 
     pub cfl_parameter: f32, // ~0.4
     pub density_threshold: f32, // ~0.125-0.3
@@ -28,7 +30,49 @@ impl Fluid {
     }
 
     pub fn apply_cfl(&mut self) {
-        self.delta_time = self.cfl_parameter * SmoothedParticle::RADIUS / self.get_max_velocity().max(1.0);
+        self.delta_time = self.cfl_parameter * FluidParticle::RADIUS / self.get_max_velocity().max(1.0);
+    }
+}
+
+impl Fluid {
+    pub fn from_particles(
+        particles: Vec<FluidParticle>, 
+        cfl_parameter: Option<f32>, 
+        density_threshold: Option<f32>,
+        divergence_threshold: Option<f32>,
+    ) -> Self {
+        let mut fluid = Self { 
+            table: TableMap::from_particles(particles),
+            cfl_parameter: cfl_parameter.unwrap_or(0.4),
+            density_threshold: density_threshold.unwrap_or(0.125),
+            divergence_threshold: divergence_threshold.unwrap_or(0.3),
+            ..Default::default()
+        };
+
+        fluid.table.update_particle_factors();
+
+        fluid
+    }
+
+    pub fn update(&mut self) {
+        self.table.update();
+        self.table.update_particle_factors();
+    }
+
+    pub fn particles(&self) -> Iter<FluidParticle>{
+        self.table.particles.iter()
+    }
+
+    pub fn particles_mut(&mut self) -> IterMut<FluidParticle> {
+        self.table.particles.iter_mut()
+    }
+
+    pub fn get_neighborhood_2d(&self, id: u32) -> Neighborhood<FluidParticle> {
+        self.table.get_neighborhood_2d(id)
+    }
+
+    pub fn len(&self) -> usize {
+        self.table.particles.len()
     }
 }
 
