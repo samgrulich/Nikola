@@ -1,7 +1,14 @@
 mod fluids;
-use fluid_renderer::{Instance, State};
+use fluid_renderer::{Instance, State, create_dense_rect};
 pub use fluids::*;
 
+
+pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
+    (2.0 * (
+            dimensions.0 as f32 / fluids::PARTICLE_RADIUS 
+          + dimensions.1 as f32 / fluids::PARTICLE_RADIUS)
+    ).ceil() as u32
+}
 
 pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
     let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
@@ -13,10 +20,15 @@ pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
         cfl_parameter: 0.02,
         ..Default::default()
     };
-    
-    // dbg!("Initialization", &fluid.table.particles, "Initialization stop");
 
     fluid
+}
+
+pub fn setup_boundary() -> Vec<Instance> {
+    let boundary_dimensions = (5, 5);
+    let boundary_instances = create_dense_rect(boundary_dimensions, (-2.0, -2.0, 0.0), Some(fluids::PARTICLE_RADIUS), None);
+
+    boundary_instances
 }
 
 pub fn step_fluid_sim(state: &mut State, fluid: &mut Fluid) {
@@ -27,10 +39,6 @@ pub fn step_fluid_sim(state: &mut State, fluid: &mut Fluid) {
         .zip(state.instances.iter_mut())
         .for_each(
             |(particle, instance)| {
-                if particle.id == 0 {
-                    dbg!(particle.position);
-                }
-
                 instance.position = particle.position.into();          
             }
         ); 

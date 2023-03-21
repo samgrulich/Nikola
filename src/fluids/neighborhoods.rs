@@ -198,11 +198,13 @@ impl TableMap {
 
     fn update_ranks(&mut self) {
         for (id, val) in self.ids.iter_mut() {
-            let index = Self::hash(self.particles[*id as usize].position, self.table_size);
+            let particle = &self.particles[*id as usize];
+            let index = Self::hash(particle.position, self.table_size);
+            let particle_ptr: *const SmoothedParticle = &*particle;
             let rank = self.entries
                 .get(&index).unwrap()
                 .iter()
-                .position(|particle| unsafe{&**particle}.id == *id).unwrap();
+                .position(|particle| *particle == particle_ptr).unwrap();
 
             *val = (index, rank);
         }
@@ -267,7 +269,7 @@ impl TableMap {
 #[cfg(test)]
 mod tests {
     use glam::{Vec3A, vec3a};
-    use crate::TableMap;
+    use crate::{TableMap, SMOOTHING_LENGHT};
 
     use super::SmoothedParticle;
 
@@ -292,8 +294,8 @@ mod tests {
     fn test_neighbors() {
         let particles = vec![
             SmoothedParticle::new(0, Vec3A::ZERO), 
-            SmoothedParticle::new(1, Vec3A::X), 
-            SmoothedParticle::new(2, Vec3A::X * 2.0), 
+            SmoothedParticle::new(1, Vec3A::X * SMOOTHING_LENGHT), 
+            SmoothedParticle::new(2, Vec3A::X * 2.0 * SMOOTHING_LENGHT), 
         ];
 
         let table = TableMap::from_particles(particles.clone());
