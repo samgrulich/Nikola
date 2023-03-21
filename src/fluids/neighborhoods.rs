@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 use glam::{Vec3A, vec3a};
+use nohash_hasher::BuildNoHashHasher;
 
 use crate::{
     fluids::{self, SmoothedParticle},
@@ -51,31 +52,31 @@ impl Neighborhood {
 pub struct TableMap {
     pub particles: Vec<SmoothedParticle> ,
 
-    entries: BTreeMap<u32, Vec<*const SmoothedParticle>>,
-    ids: BTreeMap<u32, (u32, usize)>,
-
-    table_size: i32,
+    entries: HashMap<u32, HashMap<u32, *const SmoothedParticle>, BuildNoHashHasher<u32>>,
+    ids: HashMap<u32, u32, BuildNoHashHasher<u32>>
 }
 
 impl TableMap {
-    pub fn hash(position: Vec3A, _table_size: i32) -> u32 {
+    pub fn hash(position: Vec3A) -> u32 {
         let index_vec = (position / CELL_SIZE).floor().as_ivec3();
 
         let index = (index_vec.x * P1) as u32
             ^ (index_vec.y * P2) as u32
             ^ (index_vec.z * P3) as u32;
 
-        // index % table_size as u32
         index
     } 
 }
 
 impl TableMap {
-    pub fn get_neighbors_by_id(&self, id: u32) -> (&[*const SmoothedParticle], &[*const SmoothedParticle]) {
-        let keys = self.ids.get(&id).unwrap();
-        let particles: &Vec<*const SmoothedParticle> = self.entries.get(&keys.0).unwrap();
+    pub fn get_neighbors(&self, id: u32) -> Vec<*const SmoothedParticle> {
+        let index = self.ids.get(&id).unwrap();
+        let neighborhood = self.entries.get(&index).unwrap();
+        let mut particles = neighborhood.values().copied().collect::<Vec<*const SmoothedParticle>>();
+        let particle_idx = neighborhood.keys().position(|key| *key == id).unwrap();
 
-        (&particles[0..keys.1], &particles[keys.1 + 1..])
+        particles.remove(particle_idx);
+        particles
     }
 
     pub fn get_particle_by_id(&self, id: u32) -> &SmoothedParticle {
@@ -86,10 +87,14 @@ impl TableMap {
         self.particles.get_mut(id as usize).unwrap()
     }
 
-    pub fn get_by_position(&self, position: Vec3A) -> Option<&Vec<*const SmoothedParticle>> {
-        let index = Self::hash(position, self.table_size);
+    pub fn get_by_position(&self, position: Vec3A) -> Option<Vec<*const SmoothedParticle>> {
+        let index = Self::hash(position);
+        let neighborhood = self.entries.get(&index);
 
-        self.entries.get(&index)
+        match neighborhood {
+            Some(neighborhood) => Some(neighborhood.values().copied().collect()),
+            None => None
+        }
     }
 
     pub fn get_neighborhood_2d(&self, id: u32) -> Neighborhood {
@@ -102,10 +107,8 @@ impl TableMap {
         for y in -1..=1 {
             for x in -1..=1 {
                 if x | y == 0 {
-                    let particle_neighbors = self.get_neighbors_by_id(id);
-                   
-                    neighbors.extend_from_slice(particle_neighbors.0);
-                    neighbors.extend_from_slice(particle_neighbors.1);
+                    let mut p_neighbors = self.get_neighbors(id);
+                    neighbors.append(&mut p_neighbors);
         
                     continue;
                 }
@@ -113,10 +116,8 @@ impl TableMap {
                 let x = (pos_x + x as f32 * CELL_SIZE) * 1.05;
                 let y = (pos_y + y as f32 * CELL_SIZE) * 1.05;
 
-                if let Some(particles) = self.get_by_position(vec3a(x, y, 0.0)) {
-                    neighbors.extend_from_slice(
-                        particles
-                    );
+                if let Some(mut particles) = self.get_by_position(vec3a(x, y, 0.0)) {
+                    neighbors.append(&mut particles);
                 }
             }
         }
@@ -124,52 +125,31 @@ impl TableMap {
         Neighborhood::new(particle, neighbors)
     }
 
-    pub fn insert(&mut self, particle: SmoothedParticle) {
-        let particle_new = particle.clone();
-        let particle_ptr: *const SmoothedParticle = &particle_new;
-
-        self.particles.push(particle_new);
-        self.table_size = self.particles.len() as _;
-        
-        self.update_ids();
-
-        let index = Self::hash(particle.position, self.table_size);
-
-        if self.entries.contains_key(&index) {
-            let vector = self.entries
-                .get_mut(&index).unwrap();
-            
-            self.ids.insert(particle.id, (index, vector.len()));
-
-            vector.push(particle_ptr);
-        }
-        else {
-            self.ids.insert(particle.id, (index, 0));
-
-            self.entries
-                .insert(index, vec![particle_ptr]);
+    pub fn insert(&mut self, index: u32, particle_id: u32, particle: *const SmoothedParticle) {
+        if !self.entries.contains_key(&index) {
+            self.entries.insert(index, HashMap::new());
         }
 
-        self.update_entry_pointers();
+        self.entries.get_mut(&index).unwrap().insert(particle_id, particle);
+        self.ids.insert(particle_id, index);
     }
+    
+    pub fn insert_particles(&mut self, particles: Vec<SmoothedParticle>) {
+        self.particles = particles;
+        let entries = self.particles
+            .iter()
+            .map(|particle| {
+                let index = Self::hash(particle.position);
+                (index, particle.id, &(*particle) as *const SmoothedParticle)
+            }).collect::<Vec<(u32, u32, *const SmoothedParticle)>>();
 
-    pub fn reinsert(&mut self, particle: *const SmoothedParticle, index: u32) {
-        if self.entries.contains_key(&index) {
-            self.entries.get_mut(&index).unwrap().push(particle);
-        }
-        else {
-            self.entries.insert(index, vec![particle]);
+        for (index, id, particle) in entries {
+            self.insert(index, id, particle);
         }
     }
 }
 
 impl TableMap {
-    pub fn update_entry_pointers(&mut self) {
-        for (id, (index, rank)) in self.ids.iter() {
-            self.entries.get_mut(index).unwrap()[*rank] = &self.particles[*id as usize]
-        }
-    }
-
     fn update_particle_factors(&mut self) {
         let mut factors = vec![0.0; self.particles.len()];
 
@@ -187,80 +167,46 @@ impl TableMap {
             particle.dsph_factor = *factor;
         }
     }
-
-    fn update_ids(&mut self) {
-        for (id, entry) in self.ids.iter_mut() {
-            let position = self.particles[*id as usize].position;
-
-            entry.0 = TableMap::hash(position, self.table_size);
-        }
-    }
-
-    fn update_ranks(&mut self) {
-        for (id, val) in self.ids.iter_mut() {
-            let particle = &self.particles[*id as usize];
-            let index = Self::hash(particle.position, self.table_size);
-            let particle_ptr: *const SmoothedParticle = &*particle;
-            let rank = self.entries
-                .get(&index).unwrap()
-                .iter()
-                .position(|particle| *particle == particle_ptr).unwrap();
-
-            *val = (index, rank);
-        }
-    }
-
-    pub fn update_refs(&mut self) {
-        self.update_entry_pointers();
-        self.update_ids();
-    }
 }
 
 impl TableMap {
     pub fn new() -> Self {
         TableMap { 
             particles: Vec::new(), 
-            entries: BTreeMap::new(), 
-            ids: BTreeMap::new(), 
-            table_size: 1, 
+            entries: HashMap::with_hasher(BuildNoHashHasher::default()), 
+            ids: HashMap::with_hasher(BuildNoHashHasher::default()),
         }
     }
 
     pub fn from_particles(particles: Vec<SmoothedParticle>) -> Self {
         let mut table = Self::new();
-        table.table_size = particles.len() as _;
         
-        for particle in particles {
-            table.insert(particle);
-        }
-
+        table.insert_particles(particles);
         table.update_particle_factors();
-        // table.update_refs();
        
         table
     }
 
     pub fn update(&mut self) {
-        let mut particles_to_insert: Vec<(*const SmoothedParticle, u32)> = Vec::new();
+        let mut particles_to_insert: Vec<(u32, u32, *const SmoothedParticle)> = Vec::new();
 
-        for particle in self.particles.iter().rev() {
-            let new_index = Self::hash(particle.position, self.table_size);
-            let (old_index, rank) = self.ids.get(&particle.id).unwrap();
+        for particle in self.particles.iter() {
+            let new_index = Self::hash(particle.position);
+            let old_index = self.ids.get(&particle.id).unwrap();
             
             if new_index != *old_index {
                 self.entries
                     .get_mut(old_index).unwrap()
-                    .remove(*rank);
+                    .remove(&particle.id);
 
-                particles_to_insert.push((&*particle, new_index));
+                particles_to_insert.push((new_index, particle.id, &*particle));
             }
         }
 
-        for (particle, index) in particles_to_insert.iter().rev() {
-            self.reinsert(*particle, *index);
+        for (index, id, particle) in particles_to_insert {
+            self.insert(index, id, particle);
         }
 
-        self.update_ranks();
         self.update_particle_factors();
     }
 }
@@ -310,7 +256,6 @@ mod tests {
             assert!(calculated_neighbor.position == neighbor.position);
         }
 
-        assert!(table.table_size == 3);
         assert!(table.particles.len() == 3);
         assert!(neighborhood.neighbors.len() == 2);
     }
@@ -320,22 +265,22 @@ mod tests {
 
     }
 
-    #[test]
-    fn test_table_insert() {
-        let particle = SmoothedParticle::new(0, Vec3A::ONE);
-        let mut table = TableMap::new();
-
-        table.insert(particle.clone());
-
-        assert!(table.particles == vec![particle]);
-    }
+    // #[test]
+    // fn test_table_insert() {
+    //     let particle = SmoothedParticle::new(0, Vec3A::ONE);
+    //     let mut table = TableMap::new();
+    //
+    //     table.insert(particle.clone());
+    //
+    //     assert!(table.particles == vec![particle]);
+    // }
 
     #[test]
     fn test_table_from_particles() {
         let (calculated_table, particle) = table_1_setup();
 
         let mut table = TableMap::new();
-        table.insert(particle);
+        table.insert_particles(vec![particle]);
         table.update();
        
         assert!(table.particles == calculated_table.particles);
