@@ -25,8 +25,14 @@ pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
 }
 
 pub fn setup_boundary() -> Vec<Instance> {
-    let boundary_dimensions = (5, 5);
-    let boundary_instances = create_dense_rect(boundary_dimensions, (-2.0, -2.0, 0.0), Some(fluids::PARTICLE_RADIUS), None);
+    let dimensions = (4, 3);
+    let offset = (
+        -2.0,
+        -2.0 * 3.0 / 4.0,
+        0.0
+    );
+
+    let boundary_instances = create_dense_rect(dimensions, offset, Some(fluids::PARTICLE_RADIUS), None);
 
     boundary_instances
 }
