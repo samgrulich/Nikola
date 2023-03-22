@@ -9,13 +9,13 @@ use crate::{
 
 
 
-const P1: i32 = 73856093;
-const P2: i32 = 19349663;
-const P3: i32 = 83492791;
+// const P1: i32 = 73856093;
+// const P2: i32 = 19349663;
+// const P3: i32 = 83492791;
 
-// const P1: i32 = 156;
-// const P2: i32 = 2189;
-// const P3: i32 = 12390;
+const P1: i32 = 156;
+const P2: i32 = 2189;
+const P3: i32 = 12390;
 
 const CELL_SIZE: f32 = fluids::PARTICLE_RADIUS * 2.0;
 

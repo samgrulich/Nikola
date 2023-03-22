@@ -12,7 +12,8 @@ use crate::{
 const SPEED_OF_SOUND_2: f32 = 2_190_400.0;
 
 pub fn state_of_equation(density_i: f32, rest_density: f32, constant: f32) -> f32 {
-    let pressure = constant * (density_i / rest_density - 1.0);
+    // let pressure = constant * (density_i / rest_density - 1.0);
+    let pressure = constant * (density_i - rest_density);
 
     pressure
 }

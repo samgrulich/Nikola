@@ -12,7 +12,7 @@ pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
 }
 
 pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
-    // SmoothedParticle::new(i as u32, instance.position.into())
+    // // SmoothedParticle::new(i as u32, instance.position.into())
     // let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
     //     SmoothedParticle { 
     //         id: i as u32, 
@@ -25,13 +25,13 @@ pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
     let particles = vec![
         SmoothedParticle {
             id: 0,
-            position: vec3a(0.5, 0.1, 0.0),
+            position: vec3a(0.5, 0.01, 0.0),
             velocity: Vec3A::NEG_X,
             ..Default::default()
         },
         SmoothedParticle {
             id: 1,
-            position: vec3a(-0.5, -0.1, 0.0),
+            position: vec3a(-0.5, -0.01, 0.0),
             velocity: Vec3A::X,
             ..Default::default()
         }
@@ -54,7 +54,8 @@ pub fn setup_boundary() -> Vec<Instance> {
 }
 
 pub fn step_fluid_sim(state: &mut State, fluid: &mut Fluid) {
-    dfsph(fluid);
+    // dfsph(fluid);
+    fluid.step();
 
     fluid.table.particles
         .iter()

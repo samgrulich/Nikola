@@ -1,6 +1,6 @@
 use glam::Vec3A;
 
-use crate::{fluids, Neighborhood};
+use crate::{fluids, Neighborhood, smoothing_kernel};
 
 #[repr(C)]
 #[derive(Debug, PartialEq, Clone)]
@@ -57,7 +57,6 @@ impl Default for SmoothedParticle {
 impl SmoothedParticle {
    pub fn interpolate_div_vf(&self, neighborhood: &Neighborhood) -> f32 {
         let mut qtity: f32 = 0.0;
-        let mass_sum = neighborhood.get_len() * SmoothedParticle::MASS;
         
         for (i, neighbor) in neighborhood.neighbors.iter().enumerate() {
             unsafe {
@@ -65,7 +64,7 @@ impl SmoothedParticle {
             }
         }
 
-        -1.0/self.density * qtity * mass_sum
+        -1.0/self.density * qtity * SmoothedParticle::MASS
     }
 }
 
@@ -112,6 +111,18 @@ impl SmoothedParticle {
         }
 
         self.density + delta_time * sum * mass_sum
+    }
+
+    pub fn compute_density(&self, neighborhood: &Neighborhood) -> f32 {
+        let mut intepolants = 0.0;
+
+        unsafe {
+            for neighbor in neighborhood.neighbors.iter() {
+                intepolants += smoothing_kernel(self.position, (&**neighbor).position);
+            }
+        };
+
+        intepolants * Self::MASS 
     }
 }
 
