@@ -108,7 +108,7 @@ pub fn dfsph(solver: &mut Fluid) {
     
     // adapt delta time
     solver.apply_cfl();
-    
+
     // for particles i predict velocity v_predict = v_i + time_delta * a_i_nonp
     for particle in solver.table.particles.iter_mut() {
         particle.velocity_future = particle.velocity + solver.delta_time * GRAVITATIONAL_ACCELERATION;
@@ -118,12 +118,10 @@ pub fn dfsph(solver: &mut Fluid) {
         solver.table.get_neighborhood_2d(particle.id) 
     }).collect();
 
-    let _x = &neighborhoods[0];
     // correct density error using constant density solver
     correct_density(solver, &neighborhoods);
 
     // for particles i update position
-    let _x = &solver.table.particles[0];
     for particle in solver.table.particles.iter_mut() {
         particle.position += particle.velocity_future * solver.delta_time;
     }
@@ -140,7 +138,7 @@ pub fn dfsph(solver: &mut Fluid) {
         particle.density = particle.density_future;
 
         let neighborhood = &neighborhoods[i];
-        particle.dsph_factor = particle.compute_dsph_factor(&neighborhood);
+        particle.dsph_factor = particle.compute_dfsph_factor(&neighborhood);
     }
 
     // correct divergence using divergence solver 

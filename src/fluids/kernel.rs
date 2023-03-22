@@ -38,7 +38,8 @@ fn smoothing_kernel_component(x_i: f32, x_j: f32) -> f32 {
 pub fn smoothing_kernel_grad(x_i: Vec3A, x_j: Vec3A) -> Vec3A {
     let x = smoothing_kernel_component(x_i.x, x_j.x);
     let y = smoothing_kernel_component(x_i.y, x_j.y);
-    let z = smoothing_kernel_component(x_i.z, x_j.z);
+    // let z = smoothing_kernel_component(x_i.z, x_j.z);
+    let z = 0.0;
 
     FRAC_H_D * vec3a(x, y, z)
 }

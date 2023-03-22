@@ -34,11 +34,21 @@ impl SmoothedParticle {
         SmoothedParticle {
             id,
             position,
+            ..Default::default()
+        }
+    }
+}
+
+impl Default for SmoothedParticle {
+    fn default() -> Self {
+        SmoothedParticle {
+            id: 0,
+            position: Vec3A::ZERO,
             velocity: Vec3A::ZERO,
             velocity_future: Vec3A::ZERO,
             density: Self::REST_DENSITY,
             density_future: Self::REST_DENSITY,
-            dsph_factor: 0.0, // todo: check if the intial values need to be changed
+            dsph_factor: 0.0, 
             pressure: 0.0,
         }
     }
@@ -72,8 +82,12 @@ impl SmoothedParticle {
         density_div * neighborhood.get_len() * Self::MASS
     }
 
-    pub fn compute_dsph_factor(&self, neighborhood: &Neighborhood) -> f32 {
+    pub fn compute_dfsph_factor(&self, neighborhood: &Neighborhood) -> f32 {
         let mut outter_sum = 0.0; 
+
+        if neighborhood.get_len() == 0.0 {
+            return 0.0;
+        }
 
         let mass_sum = neighborhood.get_len() * Self::MASS;
         let gradients_sum: Vec3A = neighborhood.gradients.iter().sum();
@@ -81,6 +95,8 @@ impl SmoothedParticle {
         for gradient in neighborhood.gradients.iter() {
             outter_sum += gradient.length().powi(2);
         }
+
+        dbg!(gradients_sum, mass_sum);
 
         self.density.powi(2) / ((mass_sum * gradients_sum).length().powi(2) + (mass_sum.powi(2) * outter_sum))
     }

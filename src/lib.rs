@@ -1,6 +1,7 @@
 mod fluids;
 use fluid_renderer::{Instance, State, create_dense_rect};
 pub use fluids::*;
+use glam::{Vec3A, vec3a};
 
 
 pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
@@ -11,13 +12,34 @@ pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
 }
 
 pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
-    let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
-        SmoothedParticle::new(i as u32, instance.position.into())
-    }).collect();
+    // SmoothedParticle::new(i as u32, instance.position.into())
+    // let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
+    //     SmoothedParticle { 
+    //         id: i as u32, 
+    //         position: instance.position.into(), 
+    //         velocity: -Vec3A::from(instance.position),
+    //         ..Default::default()
+    //     }
+    // }).collect();
+
+    let particles = vec![
+        SmoothedParticle {
+            id: 0,
+            position: vec3a(0.5, 0.1, 0.0),
+            velocity: Vec3A::NEG_X,
+            ..Default::default()
+        },
+        SmoothedParticle {
+            id: 1,
+            position: vec3a(-0.5, -0.1, 0.0),
+            velocity: Vec3A::X,
+            ..Default::default()
+        }
+    ];
 
     let fluid = Fluid {
         table: TableMap::from_particles(particles),
-        cfl_parameter: 0.02,
+        cfl_parameter: 0.1,
         ..Default::default()
     };
 
