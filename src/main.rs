@@ -2,7 +2,6 @@ use std::{thread::sleep, time::Duration};
 
 use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
-use glam::Vec3A;
 use nikola::{setup_fluid_sim, step_fluid_sim};
 
 // use nikola::*;
@@ -15,18 +14,13 @@ fn main() {
     let shader_source = fluid_renderer::wgpu::ShaderSource::Wgsl(std::fs::read_to_string("libs/fluid-renderer/src/shader.wgsl").unwrap().into());
     let vertices = Quad.scale(fluid_renderer::PARTICLE_SIZE);
     let indices = Quad::INDICES;
-    // let instances = create_grid((3, 2), (2, 2), (-0.0, -0.0, 0.0));
-    let instances = vec![
-        Instance::default(),
-        Instance::default(),
-    ];
     let camera = Camera {
         aspect: aspect_ratio,
         fovy: 45.0,
         ..Default::default()
     };
 
-    let mut fluid = setup_fluid_sim(&instances);
+    let (mut fluid, instances) = setup_fluid_sim();
 
     let mut state = pollster::block_on(
         State::new(
@@ -72,19 +66,19 @@ fn main() {
                 state.update();
                 
                 if is_playing {
-                    dbg!("-------------------");
-                    dbg!("STEP-----------STEP");
-                    dbg!("-------------------");
+                    // dbg!("-------------------");
+                    // dbg!("STEP-----------STEP");
+                    // dbg!("-------------------");
 
                     // dbg!(&fluid.table);
                     // fluid.table.get_neighborhood_2d(0).neighbors.iter().for_each(|neighbor| {
                     //     dbg!(neighbor, unsafe{&**neighbor}); 
                     // });
 
-                    fluid.table.particles.iter().for_each(|particle| {
-                        dbg!(particle); 
-                        // let neighborhood = fluid.table.get_neighborhood_2d(particle.id);
-                    });
+                    // fluid.table.particles.iter().for_each(|particle| {
+                    //     dbg!(particle); 
+                    //     // let neighborhood = fluid.table.get_neighborhood_2d(particle.id);
+                    // });
 
                     step_fluid_sim(&mut state, &mut fluid);
                     state.update_instances();

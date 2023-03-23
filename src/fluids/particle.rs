@@ -122,7 +122,7 @@ impl SmoothedParticle {
             }
         };
 
-        intepolants * Self::MASS 
+        intepolants * Self::REST_DENSITY
     }
 }
 

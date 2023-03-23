@@ -1,5 +1,5 @@
 mod fluids;
-use fluid_renderer::{Instance, State, create_dense_rect};
+use fluid_renderer::{Instance, State, create_dense_rect, create_grid};
 pub use fluids::*;
 use glam::{Vec3A, vec3a};
 
@@ -11,31 +11,37 @@ pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
     ).ceil() as u32
 }
 
-pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
-    // // SmoothedParticle::new(i as u32, instance.position.into())
-    // let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
-    //     SmoothedParticle { 
-    //         id: i as u32, 
-    //         position: instance.position.into(), 
-    //         velocity: -Vec3A::from(instance.position),
-    //         ..Default::default()
-    //     }
-    // }).collect();
+pub fn setup_fluid_sim() -> (Fluid, Vec<Instance>) {
+    let instances = create_grid((10, 10), (2, 2), (-0.0, -0.0, 0.0));
+    // let instances = vec![
+    //     Instance::default(),
+    //     Instance::default(),
+    // ];
 
-    let particles = vec![
-        SmoothedParticle {
-            id: 0,
-            position: vec3a(0.5, 0.01, 0.0),
-            velocity: Vec3A::NEG_X,
-            ..Default::default()
-        },
-        SmoothedParticle {
-            id: 1,
-            position: vec3a(-0.5, -0.01, 0.0),
-            velocity: Vec3A::X,
+    // // SmoothedParticle::new(i as u32, instance.position.into())
+    let particles: Vec<SmoothedParticle> = instances.iter().enumerate().map(|(i, instance)| {
+        SmoothedParticle { 
+            id: i as u32, 
+            position: instance.position.into(), 
+            velocity: -Vec3A::from(instance.position),
             ..Default::default()
         }
-    ];
+    }).collect();
+
+    // let particles = vec![
+    //     SmoothedParticle {
+    //         id: 0,
+    //         position: vec3a(0.5, 0.0, 0.0),
+    //         velocity: Vec3A::NEG_X,
+    //         ..Default::default()
+    //     },
+    //     SmoothedParticle {
+    //         id: 1,
+    //         position: vec3a(-0.5, 0.0, 0.0),
+    //         velocity: Vec3A::X,
+    //         ..Default::default()
+    //     }
+    // ];
 
     let fluid = Fluid {
         table: TableMap::from_particles(particles),
@@ -43,7 +49,7 @@ pub fn setup_fluid_sim(instances: &Vec<Instance>) -> Fluid {
         ..Default::default()
     };
 
-    fluid
+    (fluid, instances)
 }
 
 pub fn setup_boundary() -> Vec<Instance> {

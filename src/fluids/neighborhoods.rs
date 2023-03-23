@@ -244,7 +244,7 @@ impl TableMap {
 #[cfg(test)]
 mod tests {
     use glam::{Vec3A, vec3a, ivec3};
-    use crate::{TableMap, SMOOTHING_LENGHT};
+    use crate::{TableMap, SMOOTHING_LENGHT, neighborhoods::CELL_SIZE};
 
     use super::SmoothedParticle;
 
@@ -287,6 +287,33 @@ mod tests {
 
         assert!(table.particles.len() == 3);
         assert!(neighborhood.neighbors.len() == 2);
+    }
+
+    #[test]
+    fn test_3_neighbors() {
+        let particles = vec![
+            SmoothedParticle::new(0, vec3a(
+                 0.190,
+                 0.0, 
+                 0.0)
+            ), 
+            SmoothedParticle::new(1, vec3a(
+                0.0,
+                0.0,
+                0.0
+            )), 
+            SmoothedParticle::new(2, vec3a(
+                -0.19000017,
+                0.0,
+                0.0
+            )), 
+        ];
+        let table = TableMap::from_particles(particles.clone());
+
+        // check middle particle
+        let neighborhood = table.get_neighborhood_2d(1);
+        assert!(neighborhood.neighbors.len() == 2);
+
     }
     
     #[test]

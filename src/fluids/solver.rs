@@ -2,7 +2,7 @@ use std::slice::{Iter, IterMut};
 
 use glam::Vec3A;
 
-use crate::{TableMap, SmoothedParticle, GRAVITATIONAL_ACCELERATION, Neighborhood, particle, state_of_equation, state_of_equation_sound};
+use crate::{TableMap, SmoothedParticle, GRAVITATIONAL_ACCELERATION, Neighborhood, state_of_equation};
 
 pub struct Fluid {
     pub table: TableMap,
@@ -67,12 +67,11 @@ impl Fluid  {
 
         // compute pressure at particles
         for particle in self.particles_mut() {
-            particle.pressure = state_of_equation(particle.density, SmoothedParticle::REST_DENSITY, 1.0);
-            dbg!(particle.pressure);
+            particle.pressure = state_of_equation(particle.density, SmoothedParticle::REST_DENSITY, 2.0);
         }
         
         for (particle, neighborhood) in self.particles_mut().zip(&neighborhoods) {
-            dbg!(&particle);
+            // dbg!(&particle, &neighborhood.gradients);
             if particle.density <= 1.0 {
                 particle.velocity = particle.velocity_future;
                 particle.position += particle.velocity * delta_time;
@@ -91,7 +90,6 @@ impl Fluid  {
             let gradients: Vec3A = neighborhood.gradients.iter().sum();
 
             let pressure = particle.density * SmoothedParticle::REST_DENSITY * sum * gradients;
-            dbg!(sum);
             let pressure_force = -1.0/particle.density*pressure;
 
             particle.velocity_future = particle.velocity_future + delta_time * pressure_force * SmoothedParticle::MASS;
