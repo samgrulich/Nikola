@@ -14,11 +14,11 @@ fn main() {
     let vertices = Quad.scale(fluid_renderer::PARTICLE_SIZE);
     let indices = Quad::INDICES;
     let particle_offset = (
-        fluid_renderer::PARTICLE_SIZE,
-        fluid_renderer::PARTICLE_SIZE,
-        fluid_renderer::PARTICLE_SIZE,
+        1.2 * fluid_renderer::PARTICLE_SIZE,
+        1.2 * fluid_renderer::PARTICLE_SIZE,
+        1.2 * fluid_renderer::PARTICLE_SIZE,
     );
-    let instances = create_cube((10, 10, 10), Some(particle_offset), (-1.0, -1.0, -2.0));
+    let instances = create_cube((40, 40, 40), None, (-1.0, -1.0, -2.0));
     let config = Config::from_instances( 
         vec3a(-1.0, -1.0, -2.0),
         vec3a(1.0, 1.0, 0.0),

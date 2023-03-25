@@ -203,10 +203,11 @@ impl ParticleSystem {
                     let offset = ivec3(x, y, z);
                     let final_index = center_cell + offset;
                     
+                    // dbg!(p_i, center_cell, offset);
                     if !self.is_index_valid(final_index) {
-                        return;
+                        continue;
                     }
-                   
+
                     let grid_index = self.flatten_grid_index(final_index);
 
                     for p_j in self.grid_offsets[grid_index]..self.grid_particles_num[grid_index] {
