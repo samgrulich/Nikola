@@ -9,6 +9,7 @@ edition = "2021"
 opt-level = 3
 
 [dependencies]
+bytemuck = "1.13.1"
 fluid-renderer = { path = "./libs/fluid-renderer"}
 glam = "0.23.0"
 ndarray = { version = "0.15.6", features = ["rayon", "serde"] }

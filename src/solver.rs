@@ -23,7 +23,7 @@ pub trait Solver {
     
     fn set_v(&mut self, p_i: usize, vel: Vec3A);
 
-    fn sub_step(&mut self, instances: &mut Vec<Instance>);
+    fn sub_step(&mut self);
 
     fn cubic_kernel(&self, r_norm: f32) -> f32 {
         let h = self.support_radius();
@@ -129,9 +129,9 @@ pub trait Solver {
        }
     }
 
-    fn step(&mut self, instances: &mut Vec<Instance>) {
+    fn step(&mut self) {
         self.ps_mut().initialize_particle_system();
-        self.sub_step(instances);
+        self.sub_step();
         self.enforce_boundary_3d();
     }
 }

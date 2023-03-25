@@ -81,12 +81,11 @@ impl Solver for WCSPHSolver {
         self.ps.domain_start
     }
     
-    fn sub_step(&mut self, instances: &mut Vec<Instance>) {
+    fn sub_step(&mut self) {
         self.compute_densities();
         self.compute_non_pressure_forces();
         self.compute_pressure_forces();
         self.advect();
-        self.advect_instances(instances);
     }
 }
 
