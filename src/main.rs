@@ -1,6 +1,7 @@
 use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
-use nikola::{setup_fluid_sim, step_fluid_sim, setup_boundary};
+use glam::vec3a;
+use nikola::{Config, WCSPHSolver, Solver};
 
 // use nikola::*;
 
@@ -12,18 +13,36 @@ fn main() {
     let shader_source = fluid_renderer::wgpu::ShaderSource::Wgsl(std::fs::read_to_string("libs/fluid-renderer/src/shader.wgsl").unwrap().into());
     let vertices = Quad.scale(fluid_renderer::PARTICLE_SIZE);
     let indices = Quad::INDICES;
-    let fluid_instances = create_grid(fluid_renderer::GRID_DIMENSIONS, (2, 2), (-1.0, -1.0, 0.0));
+    let particle_offset = (
+        fluid_renderer::PARTICLE_SIZE,
+        fluid_renderer::PARTICLE_SIZE,
+        fluid_renderer::PARTICLE_SIZE,
+    );
+    let instances = create_cube((10, 10, 10), Some(particle_offset), (-1.0, -1.0, -2.0));
+    let config = Config::from_instances( 
+        vec3a(-1.0, -1.0, -2.0),
+        vec3a(1.0, 1.0, 0.0),
+        fluid_renderer::PARTICLE_SIZE,
+        1000.0,
+        &instances
+    );
+    
+    let mut fluid = WCSPHSolver::new(
+        0.01,
+        1,
+        50000.0,
+        0.01,
+        0.004,
+        config
+    );
+
+
     let camera = Camera {
         aspect: aspect_ratio,
         fovy: 45.0,
         ..Default::default()
     };
 
-    let mut fluid = setup_fluid_sim(&fluid_instances);
-    let (mut boundary_instances, boundary) = setup_boundary();
-
-    let mut instances = fluid_instances;
-    instances.append(&mut boundary_instances);
 
     let mut state = pollster::block_on(
         State::new(
@@ -46,8 +65,8 @@ fn main() {
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 state.update();
-                
-                step_fluid_sim(&mut state, &mut fluid, &boundary);
+
+                fluid.step(&mut state.instances);
                 state.update_instances();
 
                 fluid_renderer::handle_rendering(&mut state, control_flow);

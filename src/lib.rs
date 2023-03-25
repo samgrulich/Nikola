@@ -8,8 +8,6 @@ pub use solver::*;
 pub use wcsph::*;
 pub use particles_system::*;
 
-use fluid_renderer::{Instance, State, create_dense_rect};
-
 
 // pub fn calculate_boundaries_rect_count(dimensions: (u32, u32)) -> u32 {
 //     (2.0 * (

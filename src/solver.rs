@@ -1,3 +1,4 @@
+use fluid_renderer::Instance;
 use glam::Vec3A;
 
 use crate::ParticleSystem;
@@ -10,7 +11,9 @@ pub trait Solver {
     
     fn ps(&self) -> &ParticleSystem;
     fn ps_mut(&mut self) -> &mut ParticleSystem;
+    fn particle_num(&self) -> usize;
     fn padding(&self) -> Vec3A;
+    fn domain_start(&self) -> Vec3A;
     fn domain_size(&self) -> Vec3A;
 
     fn get_density(&self, p_i: usize) -> &f32;
@@ -20,6 +23,7 @@ pub trait Solver {
     
     fn set_v(&mut self, p_i: usize, vel: Vec3A);
 
+    fn sub_step(&mut self, instances: &mut Vec<Instance>);
 
     fn cubic_kernel(&self, r_norm: f32) -> f32 {
         let h = self.support_radius();
@@ -87,12 +91,13 @@ pub trait Solver {
         self.set_v(p_i, new_v);
     }
 
-    fn enforce_boundary_3D(&mut self) {
-       for (p_i, x_i) in self.ps_mut().x.iter_mut().enumerate() {
+    fn enforce_boundary_3d(&mut self) {
+       for p_i in 0..self.particle_num() {
             let mut collision_normal = Vec3A::ZERO;
 
-            let max = self.domain_size() - self.padding();
-            let min = self.padding();
+            let max = (self.domain_start() + self.domain_size()) - self.padding();
+            let min = self.domain_start() - self.padding();
+            let x_i = &mut self.ps_mut().x[p_i];
             
             if x_i.x > max.x {
                 collision_normal.x += 1.0;
@@ -124,8 +129,9 @@ pub trait Solver {
        }
     }
 
-    fn step(&self) {
-        self.ps().initialize_particle_system();
-        self.enforce_boundary_3D();
+    fn step(&mut self, instances: &mut Vec<Instance>) {
+        self.ps_mut().initialize_particle_system();
+        self.sub_step(instances);
+        self.enforce_boundary_3d();
     }
 }

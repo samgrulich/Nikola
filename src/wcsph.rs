@@ -1,6 +1,7 @@
+use fluid_renderer::Instance;
 use glam::{vec3a, Vec3A};
 
-use crate::{Solver, ParticleSystem};
+use crate::{Solver, ParticleSystem, Config};
 
 pub struct WCSPHSolver {
     ps: ParticleSystem,
@@ -35,6 +36,28 @@ impl Solver for WCSPHSolver {
         self.viscosity
     }
 
+    
+    fn ps(&self) -> &ParticleSystem {
+        &self.ps
+    }
+
+    fn ps_mut(&mut self) -> &mut ParticleSystem {
+        &mut self.ps
+    }
+
+    fn particle_num(&self) -> usize {
+        self.ps.particle_num
+    }
+
+    fn padding(&self) -> Vec3A {
+        Vec3A::splat(self.ps.particle_radius)
+    }
+
+    fn domain_size(&self) -> Vec3A {
+        self.ps.domain_size
+    }
+
+
     fn get_density(&self, p_i: usize) -> &f32 {
         &self.ps.density[p_i]
     }
@@ -54,9 +77,44 @@ impl Solver for WCSPHSolver {
     fn set_v(&mut self, p_i: usize, vel: glam::Vec3A) {
         self.ps.v[p_i] = vel
     }
+
+    fn domain_start(&self) -> Vec3A {
+        self.ps.domain_start
+    }
+    
+    fn sub_step(&mut self, instances: &mut Vec<Instance>) {
+        self.compute_densities();
+        self.compute_non_pressure_forces();
+        self.compute_pressure_forces();
+        self.advect();
+        self.advect_instances(instances);
+    }
 }
 
 impl WCSPHSolver {
+    pub fn new(
+        viscosity: f32, 
+        exponent: i32, 
+        stiffness: f32, 
+        surface_tension: f32, 
+        delta_time: f32, 
+        particle_config: Config
+    ) -> Self {
+        let density_0 = particle_config.density_0;
+        let mut ps = ParticleSystem::new(particle_config);
+        ps.initialize_particle_system();
+
+        WCSPHSolver { 
+            ps, 
+            viscosity, 
+            density_0, 
+            exponent, 
+            stiffness, 
+            surface_tension, 
+            delta_time 
+        }
+    }
+
     fn compute_densities_task(&self, p_i: usize, p_j: usize, ret: &mut f32) {
         let x_i = self.ps.x[p_i];
         let x_j = self.ps.x[p_j];
@@ -65,8 +123,7 @@ impl WCSPHSolver {
     }
 
     pub fn compute_densities(&mut self) {
-        let len = self.ps.x.len();
-        for p_i in 0..len {
+        for p_i in 0..self.particle_num() {
             self.ps.density[p_i] = self.ps.m_v[p_i] * self.cubic_kernel(0.0);
             let mut density_i = 0.0;
             self.ps.for_all_neighbords(p_i, |p_i, p_j, ret| self.compute_densities_task(p_i, p_j, ret), &mut density_i);
@@ -137,10 +194,9 @@ impl WCSPHSolver {
         }
     }
 
-    pub fn step(&mut self) {
-        self.compute_densities();
-        self.compute_non_pressure_forces();
-        self.compute_pressure_forces();
-        self.advect();
+    pub fn advect_instances(&self, instances: &mut Vec<Instance>) {
+        for (particle_id, instance_id) in self.ps.ids.iter().enumerate() {
+            instances[*instance_id].position = self.ps.x[particle_id].into();
+        }
     }
 }
