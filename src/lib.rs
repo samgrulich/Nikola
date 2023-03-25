@@ -18,11 +18,13 @@ use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
 
 
-pub fn run_simulation(simulation_path: String, fps: u32, instances: Vec<Instance>, particle_size: f32) {
+pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let InitOutput{event_loop, window, aspect_ratio} = init(); 
     let shader_source = fluid_renderer::wgpu::ShaderSource::Wgsl(std::fs::read_to_string("libs/fluid-renderer/src/shader.wgsl").unwrap().into());
     let vertices = Quad.scale(particle_size);
     let indices = Quad::INDICES;
+    
+    let mut simulation = Simulation::from_file(simulation_path).unwrap();
     
     let camera = Camera {
         aspect: aspect_ratio,
@@ -32,6 +34,7 @@ pub fn run_simulation(simulation_path: String, fps: u32, instances: Vec<Instance
         ..Default::default()
     };
 
+    let instances = (0..simulation.particle_num).map(|_id| Instance::new()).collect();
 
     let mut state = pollster::block_on(
         State::new(
@@ -43,8 +46,6 @@ pub fn run_simulation(simulation_path: String, fps: u32, instances: Vec<Instance
             camera
         )
     );
-
-    let mut simulation = Simulation::from_file(simulation_path).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -82,8 +83,8 @@ pub fn compute_simulation(
     particle_size: f32,
 ) {
     let config = Config::from_instances( 
-        vec3a(-40.0, -20.0, -40.0),
-        vec3a(40.0, 20.0, 0.0),
+        vec3a(-5.0, -20.0, -10.0),
+        vec3a(5.0, 10.0, 0.0),
         particle_size,
         1000.0,
         &instances
@@ -113,7 +114,7 @@ pub fn compute_simulation(
             let index = frame as usize * instances.len() + *instance_id;
             simulation.frames[index] = fluid.ps().x[particle_id];
         }
-        println!("progress: {}/{} {}%, {}s", frame, frame_stop, frame*100/frame_stop, start.elapsed().as_secs());
+        println!("progress: {}/{} {}%, {}s", frame, frame_stop, frame*100/frame_stop, start.elapsed().as_millis() as f32 / 1000.0);
     }
 
     println!("Done {}s", total_time.elapsed().as_millis() as f32 / 1000.0);
