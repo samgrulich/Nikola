@@ -96,7 +96,7 @@ pub trait Solver {
             let mut collision_normal = Vec3A::ZERO;
 
             let max = (self.domain_start() + self.domain_size()) - self.padding();
-            let min = self.domain_start() - self.padding();
+            let min = self.domain_start() + self.padding();
             let x_i = &mut self.ps_mut().x[p_i];
             
             if x_i.x > max.x {

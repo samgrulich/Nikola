@@ -106,7 +106,7 @@ impl ParticleSystem {
 
 impl ParticleSystem {
     fn pos_to_index(&self, pos: Vec3A) -> IVec3 {
-        ((pos - self.domain_start) / self.grid_size).as_ivec3()
+        ((pos - self.domain_start) / self.grid_size).floor().as_ivec3()
     }
 
     fn flatten_grid_index(&self, grid_index: IVec3) -> usize {
@@ -114,6 +114,13 @@ impl ParticleSystem {
     }
 
     pub fn get_grid_index(&self, pos: &Vec3A) -> usize {
+        let grid_index = self.pos_to_index(*pos);
+        let index = self.flatten_grid_index(grid_index);
+
+        if index > self.grid_len {
+            dbg!(grid_index, index, pos);
+        }
+
         self.flatten_grid_index(self.pos_to_index(*pos))
     }
 
@@ -210,7 +217,9 @@ impl ParticleSystem {
 
                     let grid_index = self.flatten_grid_index(final_index);
 
-                    for p_j in self.grid_offsets[grid_index]..self.grid_particles_num[grid_index] {
+                    let base_offset = self.grid_offsets[grid_index];
+                    for p_j in 0..self.grid_particles_num[grid_index] {
+                        let p_j = base_offset + p_j;
                         if p_i != p_j && (self.x[p_i] - self.x[p_j]).length() < self.support_radius {
                             task(p_i, p_j, ret);
                         }
@@ -221,3 +230,4 @@ impl ParticleSystem {
 
     }
 }
+

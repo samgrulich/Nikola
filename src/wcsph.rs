@@ -9,7 +9,6 @@ pub struct WCSPHSolver {
     pub viscosity: f32,
     pub density_0: f32,
 
-    pub exponent: i32,
     pub stiffness: f32,
     pub surface_tension: f32,
     pub delta_time: f32,
@@ -94,7 +93,6 @@ impl Solver for WCSPHSolver {
 impl WCSPHSolver {
     pub fn new(
         viscosity: f32, 
-        exponent: i32, 
         stiffness: f32, 
         surface_tension: f32, 
         delta_time: f32, 
@@ -108,7 +106,6 @@ impl WCSPHSolver {
             ps, 
             viscosity, 
             density_0, 
-            exponent, 
             stiffness, 
             surface_tension, 
             delta_time 
@@ -145,7 +142,7 @@ impl WCSPHSolver {
     pub fn compute_pressure_forces(&mut self) {
         for p_i in 0..self.ps.x.len() {
             self.ps.density[p_i] = self.ps.density[p_i].max(self.density_0);
-            self.ps.pressure[p_i] = self.stiffness * ((self.ps.density[p_i] / self.density_0).powi(self.exponent) - 1.0);
+            self.ps.pressure[p_i] = self.stiffness * ((self.ps.density[p_i] / self.density_0) - 1.0);
         }
         for p_i in 0..self.ps.x.len() {
             let mut dv = Vec3A::ZERO;
@@ -181,8 +178,8 @@ impl WCSPHSolver {
 
     pub fn compute_non_pressure_forces(&mut self) {
         for p_i in 0..self.ps.x.len() {
-            let d_v = Self::G;
-            // self.ps.for_all_neighbords(p_i, |p_i, p_j, ret| self.compute_non_pressure_forces_task(p_i, p_j, ret), &mut d_v);
+            let mut d_v = Self::G;
+            self.ps.for_all_neighbords(p_i, |p_i, p_j, ret| self.compute_non_pressure_forces_task(p_i, p_j, ret), &mut d_v);
             self.ps.acceleration[p_i] = d_v;
         }
     }
