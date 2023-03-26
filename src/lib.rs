@@ -29,8 +29,8 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let camera = Camera {
         aspect: aspect_ratio,
         fovy: 45.0,
-        eye: vec3a(0.0, 0.0, 100.0),
-        zfar: 1000.0,
+        eye: vec3a(-200.0, 200.0, 1000.0) / 2.0,
+        zfar: 10000.0,
         ..Default::default()
     };
 
@@ -83,8 +83,8 @@ pub fn compute_simulation(
     particle_size: f32,
 ) {
     let config = Config::from_instances( 
-        vec3a(-20.0, -10.0, -10.0),
-        vec3a(20.0, 0.0, 0.0),
+        vec3a(-80.0, -80.0, -80.0),
+        vec3a(80.0, 80.0, 80.0),
         particle_size,
         1000.0,
         &instances
@@ -98,7 +98,7 @@ pub fn compute_simulation(
     );
 
     let frame_stop = (simulation_time * fps) as u32;
-    let steps_per_frame = (1.0 / fps as f32 / fluid_step_time).ceil() as u32;
+    let steps_per_frame = (1.0 / fluid_step_time / fps as f32).ceil() as u32;
     
     let mut simulation = Simulation::new(fps, frame_stop, instances.len() as u32);
 

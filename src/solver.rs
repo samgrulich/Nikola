@@ -1,4 +1,3 @@
-use fluid_renderer::Instance;
 use glam::Vec3A;
 
 use crate::ParticleSystem;
