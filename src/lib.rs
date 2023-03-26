@@ -83,8 +83,8 @@ pub fn compute_simulation(
     particle_size: f32,
 ) {
     let config = Config::from_instances( 
-        vec3a(-5.0, -20.0, -10.0),
-        vec3a(5.0, 10.0, 0.0),
+        vec3a(-20.0, -10.0, -10.0),
+        vec3a(20.0, 0.0, 0.0),
         particle_size,
         1000.0,
         &instances
