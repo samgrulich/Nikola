@@ -11,7 +11,7 @@ const SIMULATION_PARTICLE_SIZE: f32 = 2.0;
 const SIMULATION_PATH: &str = "./simulation.nk";
 const FPS: u32 = 60;
 
-const FLUID_STEP_TIME: f32 = 0.01;
+const FLUID_STEP_TIME: f32 = 0.004;
 
 fn main() {
     let particle_offset = (
@@ -39,6 +39,6 @@ fn main() {
             println!("Loading: {}", path);
             run_simulation(path, FPS, INSTANCE_PARTICLE_SIZE)
         },
-        _ => compute_simulation(SIMULATION_PATH.to_string(), FPS, 5, FLUID_STEP_TIME, instances, SIMULATION_PARTICLE_SIZE)
+        _ => compute_simulation(SIMULATION_PATH.to_string(), FPS, 30, FLUID_STEP_TIME, instances, SIMULATION_PARTICLE_SIZE)
     }
 }

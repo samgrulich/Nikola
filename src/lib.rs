@@ -29,7 +29,7 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let camera = Camera {
         aspect: aspect_ratio,
         fovy: 45.0,
-        eye: vec3a(-200.0, 200.0, 1000.0) / 2.0,
+        eye: vec3a(-1000.0, 200.0, 1000.0) / 4.0,
         zfar: 10000.0,
         ..Default::default()
     };
@@ -63,7 +63,7 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
                 state.update_instances();
 
                 fluid_renderer::handle_rendering(&mut state, control_flow);
-                sleep(Duration::from_millis((1000.0 / fps as f32) as u64));
+                sleep(Duration::from_millis((600.0 / fps as f32) as u64));
             }
             Event::MainEventsCleared => {
                 state.window().request_redraw();
@@ -83,8 +83,8 @@ pub fn compute_simulation(
     particle_size: f32,
 ) {
     let config = Config::from_instances( 
-        vec3a(-80.0, -80.0, -80.0),
-        vec3a(80.0, 80.0, 80.0),
+        vec3a(-60.0, -80.0, -60.0),
+        vec3a(60.0, 80.0, 60.0),
         particle_size,
         1000.0,
         &instances
