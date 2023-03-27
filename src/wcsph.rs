@@ -171,7 +171,7 @@ impl WCSPHSolver {
         let v_xy = (self.ps.v[p_i] - self.ps.v[p_j]).dot(r);
 
         let f_v = d * self.viscosity * (self.ps.m[p_j] / (self.ps.density[p_j])) * v_xy / (
-            r.length().powi(2) + self.ps.particle_radius * self.ps.support_radius.powi(2)) * self.cubic_kernel_derivative(r);
+            r.length().powi(2) + 0.01 * self.ps.support_radius.powi(2)) * self.cubic_kernel_derivative(r);
         *ret += f_v;
     }
 

@@ -15,11 +15,11 @@ const FLUID_STEP_TIME: f32 = 0.004;
 
 fn main() {
     let particle_offset = (
-       SIMULATION_PARTICLE_SIZE * 1.2, 
-       SIMULATION_PARTICLE_SIZE * 1.2, 
-       SIMULATION_PARTICLE_SIZE * 1.2, 
+       SIMULATION_PARTICLE_SIZE * 0.6, 
+       SIMULATION_PARTICLE_SIZE * 0.6, 
+       SIMULATION_PARTICLE_SIZE * 0.6, 
     );
-    let instances = create_cube(0.04, (30, 30, 30), Some(particle_offset), (-1.0, -1.0, -1.0));
+    let instances = create_cube(0.04, (10, 10, 10), Some(particle_offset), (-1.0, -1.0, -1.0));
 
     let mut args = env::args().collect::<Vec<String>>();
 
@@ -39,6 +39,6 @@ fn main() {
             println!("Loading: {}", path);
             run_simulation(path, FPS, INSTANCE_PARTICLE_SIZE)
         },
-        _ => compute_simulation(SIMULATION_PATH.to_string(), FPS, 30, FLUID_STEP_TIME, instances, SIMULATION_PARTICLE_SIZE)
+        _ => compute_simulation(SIMULATION_PATH.to_string(), FPS, 10, FLUID_STEP_TIME, instances, SIMULATION_PARTICLE_SIZE)
     }
 }
