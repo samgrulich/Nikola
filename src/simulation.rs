@@ -75,7 +75,17 @@ impl Simulation {
         })
     }
 
-    pub fn step_instances(&mut self, instances: &mut Vec<Instance>) {
+    pub fn step_forward(&mut self, instances: &mut Vec<Instance>, step_length: usize) {
+        self.update_instances(instances);
+        self.frame_index += step_length;
+    }
+    
+    pub fn step_back(&mut self, instances: &mut Vec<Instance>, step_length: usize) {
+        self.update_instances(instances);
+        self.frame_index -= step_length;
+    }
+
+    pub fn update_instances(&self ,instances: &mut Vec<Instance>) {
         if self.particle_num * (self.frame_index as u32 + 1) > self.frames.len() as u32 {
             return;
         }
@@ -85,8 +95,6 @@ impl Simulation {
             let index = start_index + particle;
             instances[particle].position = self.frames[index].into();
         }
-
-        self.frame_index += 1;
     }
 }
 
