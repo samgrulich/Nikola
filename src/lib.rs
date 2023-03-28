@@ -4,6 +4,8 @@ mod wcsph;
 mod particles_system;
 mod simulation;
 
+use std::fs::{self, ReadDir, DirEntry};
+use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::{Instant, Duration};
 
@@ -13,10 +15,43 @@ pub use wcsph::*;
 pub use particles_system::*;
 pub use simulation::*;
 
-use glam::vec3a;
+use glam::{vec3a, Vec3A};
 use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
 
+
+fn match_files(directory: ReadDir) -> Vec<DirEntry> {
+    directory
+        .filter(|path| {
+            match path {
+                Ok(path) => match path.path().extension() {
+                    Some(ext) => ext == "nk",
+                    None => false
+                }
+                Err(err) => {
+                    dbg!(err);
+                    false
+                }
+            }
+        })
+        .map(|path| {
+            path.unwrap()
+        }).collect()
+}
+
+pub fn load_files(path: PathBuf) -> Vec<DirEntry> {
+    let local_files = fs::read_dir(path.clone()).expect("No simulations in this directory found");
+    let simulation_paths = fs::read_dir(path.join("/simulations/"));
+
+    let mut files = match_files(local_files);
+
+    match simulation_paths {
+        Ok(paths) => files.append(&mut match_files(paths)),
+        Err(err) => {dbg!(err);},
+    }
+
+    files
+}
 
 pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let InitOutput{event_loop, window, aspect_ratio} = init(); 
@@ -51,7 +86,11 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let (mut imgui_ctxt, mut imgui_platform, mut imgui_renderer) = init_ui(&state, 8.0);
     let mut frame_delta = Duration::from_millis(0);
 
-    let mut is_playing = true;
+    let mut is_playing = false;
+    let files = load_files(std::env::current_dir().unwrap())
+        .into_iter()
+        .map(|path| path.path().to_str().unwrap().to_string())
+        .collect::<Vec<String>>();
 
     event_loop.run(move |event, _, control_flow| {
         let frame_start = Instant::now();
@@ -84,6 +123,17 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
                                 "||"
                             } else {
                                 " >"
+                            };
+
+                            if files.len() > 0 {
+                                ui.menu("Soubor animace", || {
+                                    for file in files.iter() {
+                                        if ui.menu_item(file) {
+                                            simulation = Simulation::from_file(file.clone()).unwrap();
+                                            state.update_instances();
+                                        }
+                                    }
+                                });
                             };
 
                             ui.group(|| {
@@ -205,7 +255,6 @@ pub fn compute_simulation(
     let mut rest_density = 1000.0;
 
 
-    println!("Starting simulation");
     
     event_loop.run(move |event, _, control_flow| {
         let frame_start = Instant::now();
@@ -262,6 +311,8 @@ pub fn compute_simulation(
                             ui.slider("Hustota", 500.0, 5000.0, &mut rest_density);
                             if ui.slider("Delka sim. (s)", 1, 60, &mut simulation_time) {
                                 frame_stop = (simulation_time * fps) as u32;
+                                simulation.frame_stop = frame_stop;
+                                simulation.frames = (0..(simulation.particle_num * frame_stop)).map(|_id| Vec3A::ZERO).collect();
                             }
                             ui.separator();
 
@@ -345,6 +396,7 @@ pub fn compute_simulation(
                                 );
 
                                 is_playing = true;
+                                println!("Starting simulation");
                             }
                         });
                 }
@@ -359,14 +411,5 @@ pub fn compute_simulation(
 
         frame_delta = frame_start.elapsed();
     });
-
-    // for frame in 0..frame_stop {
-    //     let start = Instant::now();
-    //     for (particle_id, instance_id) in fluid.ps().ids.iter().enumerate() {
-    //         let index = frame as usize * instances.len() + *instance_id;
-    //         simulation.frames[index] = fluid.ps().x[particle_id];
-    //     }
-    //     println!("progress: {}/{} {}%, {}s", frame, frame_stop, frame*100/frame_stop, start.elapsed().as_millis() as f32 / 1000.0);
-    // }
 }
 

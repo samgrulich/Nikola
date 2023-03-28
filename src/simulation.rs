@@ -15,7 +15,7 @@ pub struct Simulation {
 
 impl Simulation {
     pub fn new(frames_per_second: u32, frame_stop: u32, particle_num: u32) -> Self {
-        let frames = (0..particle_num * frame_stop).map(|_id| Vec3A::ZERO).collect();
+        let frames = (0..(particle_num * frame_stop)).map(|_id| Vec3A::ZERO).collect();
 
         Simulation { 
             frames_per_second, 
