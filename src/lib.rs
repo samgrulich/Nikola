@@ -19,7 +19,7 @@ use glam::{vec3a, Vec3A};
 use fluid_renderer::*;
 use fluid_renderer::winit::event::*;
 
-
+/// Get files ending with ".nk" from directory
 fn match_files(directory: ReadDir) -> Vec<DirEntry> {
     directory
         .filter(|path| {
@@ -39,6 +39,7 @@ fn match_files(directory: ReadDir) -> Vec<DirEntry> {
         }).collect()
 }
 
+/// Load files from predefined directories in path
 pub fn load_files(path: PathBuf) -> Vec<DirEntry> {
     let local_files = fs::read_dir(path.clone()).expect("No simulations in this directory found");
     let simulation_paths = fs::read_dir(path.join("/simulations/"));
@@ -53,6 +54,7 @@ pub fn load_files(path: PathBuf) -> Vec<DirEntry> {
     files
 }
 
+/// Start application in player mode
 pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
     let InitOutput{event_loop, window, aspect_ratio} = init(); 
     let shader_source = fluid_renderer::wgpu::ShaderSource::Wgsl(std::fs::read_to_string("libs/fluid-renderer/src/shader.wgsl").unwrap().into());
@@ -176,6 +178,7 @@ pub fn run_simulation(simulation_path: String, fps: u32, particle_size: f32) {
 }
 
 
+/// Start application in simulation(default) mode
 pub fn compute_simulation(
     path: String, 
     fps: u32, 
@@ -305,7 +308,7 @@ pub fn compute_simulation(
                         .position([5.0, 5.0], imgui::Condition::FirstUseEver)
                         .size([180.0, 240.0], imgui::Condition::FirstUseEver)
                         .build(|| {
-                            ui.slider("Viskozita", 0.01, 2.5, &mut viscosity);
+                            ui.slider("Viskozita", 0.01, 1.5, &mut viscosity);
                             ui.slider("Tuhost", 1000.0, 300_000.0, &mut stiffness);
                             ui.slider("Povrch. napeti", 0.01, 4.0, &mut surface_tension);
                             ui.slider("Hustota", 500.0, 5000.0, &mut rest_density);

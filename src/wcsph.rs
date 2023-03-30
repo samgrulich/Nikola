@@ -3,6 +3,10 @@ use glam::{vec3a, Vec3A};
 
 use crate::{Solver, ParticleSystem, Config};
 
+
+/// Weakly Compresible Smoothed Particle Hydrodynamics solver, stores
+/// current state of fluid and provides functions to manipulate with 
+/// fluid's particles
 pub struct WCSPHSolver {
     ps: ParticleSystem,
     
@@ -90,6 +94,14 @@ impl Solver for WCSPHSolver {
 }
 
 impl WCSPHSolver {
+    /// Create new WCSPH solver 
+    ///
+    /// # Arguments 
+    /// * `viscosity` - viscosity coeficient (user set)
+    /// * `stiffness` - pressure multiplier (user set)
+    /// * `surface_tension` - surface tension coeficient (user set)
+    /// * `delta_time` - length of time step (s) 
+    /// * `particle_config` - configuration of particle system
     pub fn new(
         viscosity: f32, 
         stiffness: f32, 
@@ -111,6 +123,12 @@ impl WCSPHSolver {
         }
     }
 
+    /// Computes density for particle i influenced by j and adds the result to ret
+    ///
+    /// # Arguments
+    /// * `p_i` - id of particle i
+    /// * `p_j` - id of particle j
+    /// * `ret` - mutable reference, where the result will be added
     fn compute_densities_task(&self, p_i: usize, p_j: usize, ret: &mut f32) {
         let x_i = self.ps.x[p_i];
         let x_j = self.ps.x[p_j];
@@ -118,6 +136,7 @@ impl WCSPHSolver {
         *ret += self.ps.m_v[p_j] * self.cubic_kernel((x_i - x_j).length());
     }
 
+    /// Updates density for each particle 
     pub fn compute_densities(&mut self) {
         for p_i in 0..self.particle_num() {
             self.ps.density[p_i] = self.ps.m_v[p_i] * self.cubic_kernel(0.0);
@@ -128,6 +147,12 @@ impl WCSPHSolver {
         }
     }
 
+    /// Compute pressure force acting on particle i from particle j and adds result to ret
+    ///
+    /// # Arguments
+    /// * `p_i` - id of particle i
+    /// * `p_j` - id of particle j
+    /// * `ret` - mutable reference, where the result will be added
     fn compute_pressure_forces_task(&self, p_i: usize, p_j: usize, ret: &mut Vec3A) {
         let x_i = self.ps.x[p_i];
         let dpi = self.ps.pressure[p_i] / self.ps.density[p_i].powi(2);
@@ -138,6 +163,7 @@ impl WCSPHSolver {
         *ret += -self.density_0 * self.ps.m_v[p_j] * (dpi + dpj) * self.cubic_kernel_derivative(x_i - x_j);
     }
 
+    /// Updates pressure forces for each particle
     pub fn compute_pressure_forces(&mut self) {
         for p_i in 0..self.ps.x.len() {
             self.ps.density[p_i] = self.ps.density[p_i].max(self.density_0);
@@ -150,6 +176,13 @@ impl WCSPHSolver {
         }
     }
 
+    /// Computes non-pressure forces acting on particle i from particle j and adds the result to
+    /// the ret
+    ///
+    /// # Arguments
+    /// * `p_i` - id of particle i
+    /// * `p_j` - id of particle j
+    /// * `ret` - mutable reference, where the result will be added
     fn compute_non_pressure_forces_task(&self, p_i: usize, p_j: usize, ret: &mut Vec3A) {
         let x_i = self.ps.x[p_i];
         let x_j = self.ps.x[p_j];
@@ -175,6 +208,7 @@ impl WCSPHSolver {
         *ret += f_v;
     }
 
+    /// Updates non-pressure acceleration for each particle
     pub fn compute_non_pressure_forces(&mut self) {
         for p_i in 0..self.ps.x.len() {
             let mut d_v = Self::G;
@@ -183,6 +217,7 @@ impl WCSPHSolver {
         }
     }
 
+    /// For each particle applies its acceleration and velocity
     pub fn advect(&mut self) {
         for p_i in 0..self.ps.x.len() {
             self.ps.v[p_i] += self.delta_time * self.ps.acceleration[p_i];
@@ -190,6 +225,10 @@ impl WCSPHSolver {
         }
     }
 
+    /// Set position of each instance to according particle position
+    ///
+    /// # Arguments
+    /// * `instances` - instances to advect
     pub fn advect_instances(&self, instances: &mut Vec<Instance>) {
         for (particle_id, instance_id) in self.ps.ids.iter().enumerate() {
             instances[*instance_id].position = self.ps.x[particle_id].into();

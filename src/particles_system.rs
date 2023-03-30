@@ -4,6 +4,8 @@ use glam::{Vec3A, IVec3, ivec3};
 
 use crate::Config;
 
+
+/// Represents a system of particles
 pub struct ParticleSystem {
     pub domain_start: Vec3A,
     pub domain_end: Vec3A,
@@ -50,6 +52,7 @@ pub struct ParticleSystem {
 }
 
 impl ParticleSystem {
+    /// Create new ParticleSystem initialized with config and default values
     pub fn new(config: Config) -> Self {
         let domain_size = config.domain_end - config.domain_start;
 
@@ -105,14 +108,35 @@ impl ParticleSystem {
 }
 
 impl ParticleSystem {
+    /// Transform worldspace position to gridspace position
+    ///
+    /// # Arguments 
+    /// * `pos` - position of particle
+    ///
+    /// # Returns 
+    /// cell position
     fn pos_to_index(&self, pos: Vec3A) -> IVec3 {
         ((pos - self.domain_start) / self.grid_size).floor().as_ivec3()
     }
 
+    /// Transform cell position to particle id 
+    ///
+    /// # Arguments
+    /// * `grid_index` - cell position
+    ///
+    /// # Returns 
+    /// particle id
     fn flatten_grid_index(&self, grid_index: IVec3) -> usize {
         (grid_index.x * self.grid_dims.y * self.grid_dims.z + grid_index.y * self.grid_dims.z + grid_index.z) as usize
     }
 
+    /// Get particle id by position 
+    ///
+    /// # Arguments
+    /// * `pos` - worldspace position
+    ///
+    /// # Returns 
+    /// particle id
     pub fn get_grid_index(&self, pos: &Vec3A) -> usize {
         let grid_index = self.pos_to_index(*pos);
         let index = self.flatten_grid_index(grid_index);
@@ -124,10 +148,15 @@ impl ParticleSystem {
         self.flatten_grid_index(self.pos_to_index(*pos))
     }
 
+    /// Check if index is not out of bounds 
+    ///
+    /// # Arguments 
+    /// * `grid_index` - gridspace position
     pub fn is_index_valid(&self, grid_index: IVec3) -> bool {
         grid_index.cmpge(IVec3::ZERO).all() && grid_index.cmplt(self.grid_dims).all()
     }
 
+    /// Update list of ids based on new particles positions 
     pub fn update_grid_id(&mut self) {
         for i in self.grid_particles_num.iter_mut() {
             *i = 0;
@@ -137,11 +166,9 @@ impl ParticleSystem {
             self.grid_ids[i] = grid_index;
             self.grid_particles_num[grid_index].add_assign(1);
         }
-        // for (i, val) in self.grid_particles_num.iter().enumerate() {
-        //     self.grid_particles_num_temp[i] = *val;
-        // }
     }
 
+    /// Sort storage arrays that neighbors can be close together
     pub fn sort(&mut self) {
         let mut grid_particles_num_temp = self.grid_particles_num.clone();
         let mut new_grid_ids: Vec<usize> = vec![0; self.particle_num];
@@ -192,12 +219,18 @@ impl ParticleSystem {
         }
     }
 
+    /// Initialize particle system step
     pub fn initialize_particle_system(&mut self) {
         self.update_grid_id();
-        // todo: do prefix sum self.grid_particles_num
         self.sort();
     }
 
+    /// Execute passed task for each neighbor
+    /// 
+    /// # Arguments
+    /// * `p_i` - particle id
+    /// * `task` - task that will be executed 
+    /// * `ret` - result, which can be mutated by task
     pub fn for_all_neighbords<F, T>(&self, p_i: usize, task: F, ret: &mut T) 
     where 
         F: Fn(usize, usize, &mut T)

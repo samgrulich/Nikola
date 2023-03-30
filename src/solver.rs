@@ -2,28 +2,65 @@ use glam::Vec3A;
 
 use crate::ParticleSystem;
 
+/// Trait with helpful functions for solver implmentation 
 pub trait Solver {
+    /// Get support radius
     fn support_radius(&self) -> f32;
+    /// Get particle radius
     fn particle_radius(&self) -> f32;
+    /// Get dimensions of domain
     fn dimensions(&self) -> u32;
+    /// Get viscosity parameter
     fn viscosity(&self) -> f32;
     
+    /// Access reference to the particle system
     fn ps(&self) -> &ParticleSystem;
+    /// Access mutable reference to the particle system
     fn ps_mut(&mut self) -> &mut ParticleSystem;
+    /// Get particle num (nubmer of particles in simulation)
     fn particle_num(&self) -> usize;
+    /// Get padding of simulation domain
     fn padding(&self) -> Vec3A;
+    /// Get domain starting point
     fn domain_start(&self) -> Vec3A;
+    /// Get domain ending point
     fn domain_size(&self) -> Vec3A;
 
+    /// Get density at particle
+    ///
+    /// # Arguments 
+    /// * `p_i` - particle id
     fn get_density(&self, p_i: usize) -> &f32;
+    /// Get velocity at particle
+    ///
+    /// # Arguments 
+    /// * `p_i` - particle id
     fn get_v(&self, p_i: usize) -> Vec3A;
+    /// Get mass at particle
+    ///
+    /// # Arguments 
+    /// * `p_i` - particle id
     fn get_m(&self, p_i: usize) -> &f32;
+    /// Get volume bound mass at particle
+    ///
+    /// # Arguments 
+    /// * `p_i` - particle id
     fn get_m_v(&self, p_i: usize) -> &f32;
     
+    /// Set velocity of particle
+    ///
+    /// # Arguments 
+    /// * `p_i` - particle id
+    /// * `vel` - new velocity
     fn set_v(&mut self, p_i: usize, vel: Vec3A);
 
+    /// Sub step is run by particle system when stepping simulation
     fn sub_step(&mut self);
 
+    /// Compute cubic spline smoothing kernel 
+    ///
+    /// # Arguments 
+    /// * `r_norm` - normalized distance between particles
     fn cubic_kernel(&self, r_norm: f32) -> f32 {
         let h = self.support_radius();
         let mut l = match self.dimensions() {
@@ -51,6 +88,10 @@ pub trait Solver {
         }
     }
 
+    /// Computes gradient of cubic spline smoothing kernel
+    ///
+    /// # Arguments 
+    /// * `r` - difference vector between two particles
     fn cubic_kernel_derivative(&self, r: Vec3A) -> Vec3A  {
         let h = self.support_radius();
         let mut l = match self.dimensions() {
@@ -77,19 +118,31 @@ pub trait Solver {
         }
     }
 
-    fn viscosity_foce(&self, p_i: usize, p_j: usize, r: Vec3A) -> Vec3A {
+    /// Computes viscosity force acting between particles i and j
+    ///
+    /// # Arguments 
+    /// * `p_i` - id of particle i
+    /// * `p_j` - id of particle j
+    /// * `r` - position difference between these two particles
+    fn viscosity_force(&self, p_i: usize, p_j: usize, r: Vec3A) -> Vec3A {
         let v_xy = (self.get_v(p_i) - self.get_v(p_j)).dot(r);
 
         2.0 * ((self.dimensions() + 2) as f32) * self.viscosity() * (self.get_m(p_j) / self.get_density(p_j)) * v_xy / (
             r.length().powi(2) * 2.0 + self.particle_radius() * self.support_radius().powi(2)) * self.cubic_kernel_derivative(r)
     }
 
+    /// Simulate collision for particle i along normal of the collision surface
+    ///
+    /// # Arguments
+    /// * `p_i` - particle id
+    /// * `vec` - normal vector of collision surface
     fn simulate_collisions(&mut self, p_i: usize, vec: Vec3A) {
         let c_f = 0.2;
         let new_v = self.get_v(p_i) - (1.0 + c_f) * self.get_v(p_i).dot(vec) * vec;
         self.set_v(p_i, new_v);
     }
 
+    /// Keeps all particles inside given domain 
     fn enforce_boundary_3d(&mut self) {
        for p_i in 0..self.particle_num() {
             let mut collision_normal = Vec3A::ZERO;
@@ -128,6 +181,7 @@ pub trait Solver {
        }
     }
 
+    /// Step simulation
     fn step(&mut self) {
         self.ps_mut().initialize_particle_system();
         self.sub_step();
