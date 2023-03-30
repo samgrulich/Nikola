@@ -1,0 +1,12 @@
+/home/sam/dev/rs/nikola/target/x86_64-pc-windows-gnu/release/deps/io_lifetimes-482a9d78e240085a.rmeta: /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/lib.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/portability.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/traits.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/example_ffi.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/raw.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/views.rs
+
+/home/sam/dev/rs/nikola/target/x86_64-pc-windows-gnu/release/deps/libio_lifetimes-482a9d78e240085a.rlib: /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/lib.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/portability.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/traits.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/example_ffi.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/raw.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/views.rs
+
+/home/sam/dev/rs/nikola/target/x86_64-pc-windows-gnu/release/deps/io_lifetimes-482a9d78e240085a.d: /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/lib.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/portability.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/traits.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/example_ffi.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/raw.rs /home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/views.rs
+
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/lib.rs:
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/portability.rs:
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/traits.rs:
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/example_ffi.rs:
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/raw.rs:
+/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/io-lifetimes-1.0.8/src/views.rs:
