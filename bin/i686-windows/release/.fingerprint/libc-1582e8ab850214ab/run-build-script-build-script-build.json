@@ -1,0 +1,1 @@
+{"rustc":4936231744503104448,"features":"","target":0,"profile":0,"path":0,"deps":[[13250817853276013391,"build_script_build",false,11745838896444264449]],"local":[{"RerunIfChanged":{"output":"i686-pc-windows-gnu/release/build/libc-1582e8ab850214ab/output","paths":["build.rs"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}

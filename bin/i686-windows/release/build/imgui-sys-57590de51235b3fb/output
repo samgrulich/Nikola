@@ -1,0 +1,87 @@
+cargo:THIRD_PARTY=/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/imgui-sys-0.10.0/third-party
+cargo:DEFINE_IMGUI_USE_WCHAR32=
+cargo:DEFINE_CIMGUI_NO_EXPORT=
+cargo:DEFINE_IMGUI_DISABLE_WIN32_FUNCTIONS=
+cargo:DEFINE_IMGUI_DISABLE_OSX_FUNCTIONS=
+cargo:THIRD_PARTY=/home/sam/.cargo/registry/src/github.com-1ecc6299db9ec823/imgui-sys-0.10.0/third-party/imgui-master
+OPT_LEVEL = Some("3")
+TARGET = Some("i686-pc-windows-gnu")
+HOST = Some("x86_64-unknown-linux-gnu")
+cargo:rerun-if-env-changed=CXX_i686-pc-windows-gnu
+CXX_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=CXX_i686_pc_windows_gnu
+CXX_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_CXX
+TARGET_CXX = None
+cargo:rerun-if-env-changed=CXX
+CXX = None
+RUSTC_LINKER = None
+cargo:rerun-if-env-changed=CROSS_COMPILE
+CROSS_COMPILE = None
+cargo:rerun-if-env-changed=CXXFLAGS_i686-pc-windows-gnu
+CXXFLAGS_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=CXXFLAGS_i686_pc_windows_gnu
+CXXFLAGS_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_CXXFLAGS
+TARGET_CXXFLAGS = None
+cargo:rerun-if-env-changed=CXXFLAGS
+CXXFLAGS = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+DEBUG = Some("false")
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+cargo:rerun-if-env-changed=CXX_i686-pc-windows-gnu
+CXX_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=CXX_i686_pc_windows_gnu
+CXX_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_CXX
+TARGET_CXX = None
+cargo:rerun-if-env-changed=CXX
+CXX = None
+RUSTC_LINKER = None
+cargo:rerun-if-env-changed=CROSS_COMPILE
+CROSS_COMPILE = None
+cargo:rerun-if-env-changed=CXXFLAGS_i686-pc-windows-gnu
+CXXFLAGS_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=CXXFLAGS_i686_pc_windows_gnu
+CXXFLAGS_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_CXXFLAGS
+TARGET_CXXFLAGS = None
+cargo:rerun-if-env-changed=CXXFLAGS
+CXXFLAGS = None
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+CARGO_CFG_TARGET_FEATURE = Some("fxsr,sse,sse2")
+running: "i686-w64-mingw32-g++" "-O3" "-ffunction-sections" "-fdata-sections" "-m32" "-fno-exceptions" "-fno-rtti" "-std=c++11" "-DIMGUI_USE_WCHAR32" "-DCIMGUI_NO_EXPORT" "-DIMGUI_DISABLE_WIN32_FUNCTIONS" "-DIMGUI_DISABLE_OSX_FUNCTIONS" "-o" "/home/sam/dev/rs/nikola/target/i686-pc-windows-gnu/release/build/imgui-sys-57590de51235b3fb/out/include_imgui_master.o" "-c" "include_imgui_master.cpp"
+exit status: 0
+cargo:rerun-if-env-changed=AR_i686-pc-windows-gnu
+AR_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=AR_i686_pc_windows_gnu
+AR_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_AR
+TARGET_AR = None
+cargo:rerun-if-env-changed=AR
+AR = None
+cargo:rerun-if-env-changed=ARFLAGS_i686-pc-windows-gnu
+ARFLAGS_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=ARFLAGS_i686_pc_windows_gnu
+ARFLAGS_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_ARFLAGS
+TARGET_ARFLAGS = None
+cargo:rerun-if-env-changed=ARFLAGS
+ARFLAGS = None
+running: "i686-w64-mingw32-ar" "cq" "/home/sam/dev/rs/nikola/target/i686-pc-windows-gnu/release/build/imgui-sys-57590de51235b3fb/out/libcimgui.a" "/home/sam/dev/rs/nikola/target/i686-pc-windows-gnu/release/build/imgui-sys-57590de51235b3fb/out/include_imgui_master.o"
+exit status: 0
+running: "i686-w64-mingw32-ar" "s" "/home/sam/dev/rs/nikola/target/i686-pc-windows-gnu/release/build/imgui-sys-57590de51235b3fb/out/libcimgui.a"
+exit status: 0
+cargo:rustc-link-lib=static=cimgui
+cargo:rustc-link-search=native=/home/sam/dev/rs/nikola/target/i686-pc-windows-gnu/release/build/imgui-sys-57590de51235b3fb/out
+cargo:rerun-if-env-changed=CXXSTDLIB_i686-pc-windows-gnu
+CXXSTDLIB_i686-pc-windows-gnu = None
+cargo:rerun-if-env-changed=CXXSTDLIB_i686_pc_windows_gnu
+CXXSTDLIB_i686_pc_windows_gnu = None
+cargo:rerun-if-env-changed=TARGET_CXXSTDLIB
+TARGET_CXXSTDLIB = None
+cargo:rerun-if-env-changed=CXXSTDLIB
+CXXSTDLIB = None
+cargo:rustc-link-lib=stdc++
